@@ -7,6 +7,7 @@ import { insertThemeSchema, insertEtfSchema, stockPrices } from "@shared/schema"
 import { sql } from "drizzle-orm";
 import { log } from "./index";
 import cron from "node-cron";
+import { syncToGitHub, getSyncStatus } from "./githubSync";
 
 const backfillInProgress = new Set<string>();
 
@@ -671,6 +672,23 @@ export async function registerRoutes(
     }
   });
 
+  // --- GitHub sync endpoints ---
+  app.get("/api/github/sync", (_req, res) => {
+    res.json(getSyncStatus());
+  });
+
+  app.post("/api/github/sync", async (_req, res) => {
+    const { syncInProgress } = getSyncStatus();
+    if (syncInProgress) {
+      return res.status(409).json({ message: "Sync already in progress" });
+    }
+    syncToGitHub()
+      .then((r) => log(`Manual GitHub sync done: ${r.files} files`, "github"))
+      .catch((err) => log(`Manual GitHub sync error: ${err}`, "github"));
+    res.json({ message: "GitHub sync started" });
+  });
+
+  // --- Cron: price update + GitHub sync at 5 PM EST weekdays ---
   cron.schedule("0 17 * * 1-5", async () => {
     log("Running scheduled price update (5:00 PM EST weekdays)", "cron");
     try {
@@ -679,17 +697,28 @@ export async function registerRoutes(
     } catch (err) {
       log(`Scheduled update failed: ${err}`, "cron");
     }
+    // Sync latest code to GitHub after price update
+    try {
+      const r = await syncToGitHub();
+      log(`Scheduled GitHub sync: ${r.files} files pushed`, "github");
+    } catch (err) {
+      log(`Scheduled GitHub sync failed: ${err}`, "github");
+    }
   }, {
     timezone: "America/New_York",
   });
 
-  log("Cron job scheduled: daily price update at 5:00 PM EST (Mon-Fri)", "cron");
+  log("Cron job scheduled: daily price update + GitHub sync at 5:00 PM EST (Mon-Fri)", "cron");
 
   setTimeout(() => {
     backfillThemeStockOHLCV().catch((err) =>
       log(`Startup OHLCV backfill error: ${err}`, "stocks")
     );
-  }, 5000);
+    // Sync to GitHub on startup (after a short delay)
+    syncToGitHub()
+      .then((r) => log(`Startup GitHub sync: ${r.files} files pushed`, "github"))
+      .catch((err) => log(`Startup GitHub sync failed: ${err}`, "github"));
+  }, 10000);
 
   return httpServer;
 }
