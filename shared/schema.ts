@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, date, timestamp, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, real, date, timestamp, serial, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -31,7 +31,9 @@ export const stockPrices = pgTable("stock_prices", {
   closePrice: real("close_price").notNull(),
   volume: real("volume"),
   fetchedAt: timestamp("fetched_at").defaultNow(),
-});
+}, (t) => ({
+  symbolDateUnique: unique("stock_prices_symbol_date_unique").on(t.symbol, t.date),
+}));
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
