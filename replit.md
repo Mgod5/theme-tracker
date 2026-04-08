@@ -57,10 +57,12 @@ A stock theme performance tracking application. Users create investment themes (
 ## GitHub Repository
 - **URL**: https://github.com/Mgod5/theme-tracker
 - All source files mirrored via GitHub Git Data API (no git binary required)
-- To update: re-run the push script via the connectors SDK or use `git push` directly with the deploy SSH key at `~/.ssh/github_deploy_key`
+- Auto-sync on server startup (10s delay) and daily at 5PM EST with price update
+- Manual sync: `POST /api/github/sync` | Status: `GET /api/github/sync`
+- Sync module: `server/githubSync.ts` — uses `@replit/connectors-sdk` to proxy GitHub API calls
 
 ## Recent Changes
-- 2026-04-03: Mirrored project to GitHub at https://github.com/Mgod5/theme-tracker (84 files pushed via Git Data API)
+- 2026-04-03: Added auto GitHub sync — mirrors code to https://github.com/Mgod5/theme-tracker on startup and daily at 5PM EST; manual trigger via POST /api/github/sync
 - 2026-04-01: Increased historical data backfill from 100 to 1095 days (3 years); chart endpoint queries 1095 days; no additional API feeds/costs (Polygon Massive tier supports 15+ years)
 - 2026-04-01: Added drawing tools to stock chart page — Trend Line (click 2 points, extended line across chart) and Text annotation (click to place, type label); SVG overlay with amber color; Clear All button; Escape cancels pending drawing; drawings re-render correctly on chart scroll/zoom
 - 2026-04-01: Added stock chart page (/charts/:symbol) — candlestick chart with SMA 10/20/50/200 + VWAP; stats header (ADR, $Vol, ATR Mult, RSI14, Avg Vol 20d); RSI direction (green rising/red falling); Avg Vol direction (5d vs 20d); Sector from Polygon ref API (sic_description, cached 24h); Theme badges; click any symbol in Dashboard to navigate to chart
