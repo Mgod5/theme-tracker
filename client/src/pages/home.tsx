@@ -7,7 +7,7 @@ import { AddThemeDialog } from "@/components/add-theme-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, TrendingUp, Plus, AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 
 function formatTimestamp(iso: string): string {
@@ -37,10 +37,6 @@ export default function Home() {
   const { data: themes, isLoading, error } = useQuery<ThemeWithPerformance[]>({
     queryKey: ["/api/themes"],
   });
-
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["/api/themes"] });
-  }, []);
 
   const refreshMutation = useMutation({
     mutationFn: async () => {

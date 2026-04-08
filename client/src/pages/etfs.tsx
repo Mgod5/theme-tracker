@@ -549,10 +549,6 @@ export default function Etfs() {
     queryKey: ["/api/etfs"],
   });
 
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["/api/etfs"] });
-  }, []);
-
   const allExpanded = etfList ? etfList.length > 0 && etfList.every((e) => expandedIds.has(e.id)) : false;
   const allCollapsed = etfList ? etfList.length > 0 && etfList.every((e) => !expandedIds.has(e.id)) : true;
 

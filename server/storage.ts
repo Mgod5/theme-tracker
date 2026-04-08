@@ -20,6 +20,26 @@ import {
   type ChartDrawing,
 } from "@shared/schema";
 
+// ---------------------------------------------------------------------------
+// Simple in-memory cache with TTL
+// ---------------------------------------------------------------------------
+interface CacheEntry<T> { data: T; expiresAt: number }
+const _cache = new Map<string, CacheEntry<any>>();
+
+function cacheGet<T>(key: string): T | null {
+  const e = _cache.get(key);
+  if (e && e.expiresAt > Date.now()) return e.data as T;
+  return null;
+}
+function cacheSet<T>(key: string, data: T, ttlMs: number): void {
+  _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+export function cacheInvalidate(...keys: string[]): void {
+  for (const k of keys) _cache.delete(k);
+}
+
+const PERF_TTL = 30_000; // 30 seconds
+
 export interface IStorage {
   getThemes(): Promise<Theme[]>;
   getTheme(id: number): Promise<Theme | undefined>;
@@ -60,19 +80,20 @@ export class DatabaseStorage implements IStorage {
 
   async createTheme(data: InsertTheme): Promise<Theme> {
     const result = await db.insert(themes).values(data).returning();
+    cacheInvalidate("themes_perf");
     return result[0];
   }
 
   async updateTheme(id: number, data: Partial<InsertTheme>): Promise<Theme> {
     const result = await db.update(themes).set(data).where(eq(themes.id, id)).returning();
-    if (result.length === 0) {
-      throw new Error("Theme not found");
-    }
+    if (result.length === 0) throw new Error("Theme not found");
+    cacheInvalidate("themes_perf");
     return result[0];
   }
 
   async deleteTheme(id: number): Promise<void> {
     await db.delete(themes).where(eq(themes.id, id));
+    cacheInvalidate("themes_perf");
   }
 
   async getThemeStocks(themeId: number): Promise<ThemeStock[]> {
@@ -80,14 +101,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addStockToTheme(data: InsertThemeStock): Promise<ThemeStock> {
-    const existing = await db
-      .select()
-      .from(themeStocks)
-      .where(and(eq(themeStocks.themeId, data.themeId), eq(themeStocks.symbol, data.symbol)));
-    if (existing.length > 0) {
-      throw new Error(`${data.symbol} is already in this theme`);
-    }
     const result = await db.insert(themeStocks).values(data).returning();
+    cacheInvalidate("themes_perf");
     return result[0];
   }
 
@@ -95,52 +110,41 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(themeStocks)
       .where(and(eq(themeStocks.themeId, themeId), eq(themeStocks.symbol, symbol)));
+    cacheInvalidate("themes_perf");
   }
 
   async getAllUniqueSymbols(): Promise<string[]> {
-    const result = await db
-      .selectDistinct({ symbol: themeStocks.symbol })
-      .from(themeStocks);
+    const result = await db.selectDistinct({ symbol: themeStocks.symbol }).from(themeStocks);
     return result.map((r) => r.symbol);
   }
 
   async upsertStockPrice(data: InsertStockPrice): Promise<void> {
-    const existing = await db
-      .select()
-      .from(stockPrices)
-      .where(and(eq(stockPrices.symbol, data.symbol), eq(stockPrices.date, data.date)));
-
-    if (existing.length > 0) {
-      await db
-        .update(stockPrices)
-        .set({
+    await db
+      .insert(stockPrices)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [stockPrices.symbol, stockPrices.date],
+        set: {
           closePrice: data.closePrice,
           openPrice: data.openPrice ?? undefined,
           highPrice: data.highPrice ?? undefined,
           lowPrice: data.lowPrice ?? undefined,
           volume: data.volume ?? undefined,
           fetchedAt: new Date(),
-        })
-        .where(and(eq(stockPrices.symbol, data.symbol), eq(stockPrices.date, data.date)));
-    } else {
-      await db.insert(stockPrices).values(data);
-    }
+        },
+      });
+    // Invalidate caches so fresh data is served after a price update
+    cacheInvalidate("themes_perf", "etfs_perf");
   }
 
   async getStockPrices(symbol: string, sinceDays: number): Promise<StockPrice[]> {
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - sinceDays);
     const sinceDateStr = sinceDate.toISOString().split("T")[0];
-
     return db
       .select()
       .from(stockPrices)
-      .where(
-        and(
-          eq(stockPrices.symbol, symbol),
-          sql`${stockPrices.date} >= ${sinceDateStr}`
-        )
-      )
+      .where(and(eq(stockPrices.symbol, symbol), sql`${stockPrices.date} >= ${sinceDateStr}`))
       .orderBy(stockPrices.date);
   }
 
@@ -154,16 +158,18 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  // ---------------------------------------------------------------------------
+  // Calculation helpers (unchanged logic, same as before)
+  // ---------------------------------------------------------------------------
+
   private calculateChange(prices: StockPrice[], daysAgo: number, currentPrice: number): number | null {
     if (prices.length === 0) return null;
-
     const sortedPrices = [...prices].sort((a, b) => b.date.localeCompare(a.date));
 
     if (daysAgo === 1) {
       const uniqueDates = Array.from(new Set(sortedPrices.map((p) => p.date)));
       if (uniqueDates.length < 2) return null;
-      const previousDate = uniqueDates[1];
-      const previousPrice = sortedPrices.find((p) => p.date === previousDate);
+      const previousPrice = sortedPrices.find((p) => p.date === uniqueDates[1]);
       if (!previousPrice || previousPrice.closePrice === 0) return null;
       return ((currentPrice - previousPrice.closePrice) / previousPrice.closePrice) * 100;
     }
@@ -174,7 +180,6 @@ export class DatabaseStorage implements IStorage {
 
     let closestPrice: StockPrice | null = null;
     let closestDiff = Infinity;
-
     for (const p of sortedPrices) {
       const diff = Math.abs(new Date(p.date).getTime() - targetDate.getTime());
       if (diff < closestDiff && p.date <= targetDateStr) {
@@ -182,11 +187,7 @@ export class DatabaseStorage implements IStorage {
         closestPrice = p;
       }
     }
-
-    if (!closestPrice) {
-      closestPrice = sortedPrices[sortedPrices.length - 1];
-    }
-
+    if (!closestPrice) closestPrice = sortedPrices[sortedPrices.length - 1];
     if (!closestPrice || closestPrice.closePrice === 0) return null;
     return ((currentPrice - closestPrice.closePrice) / closestPrice.closePrice) * 100;
   }
@@ -196,9 +197,7 @@ export class DatabaseStorage implements IStorage {
       .filter((p) => p.highPrice != null && p.lowPrice != null && p.closePrice > 0)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, period);
-
     if (withHL.length < 2) return null;
-
     const ranges = withHL.map((p) => ((p.highPrice! - p.lowPrice!) / p.closePrice) * 100);
     return ranges.reduce((sum, r) => sum + r, 0) / ranges.length;
   }
@@ -207,9 +206,7 @@ export class DatabaseStorage implements IStorage {
     const sorted = prices
       .filter((p) => p.highPrice != null && p.lowPrice != null && p.closePrice > 0)
       .sort((a, b) => a.date.localeCompare(b.date));
-
     if (sorted.length < 15) return null;
-
     const trValues: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
       const high = sorted[i].highPrice!;
@@ -218,18 +215,13 @@ export class DatabaseStorage implements IStorage {
       const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
       trValues.push(tr);
     }
-
     const last14 = trValues.slice(-14);
     return last14.reduce((sum, tr) => sum + tr, 0) / last14.length;
   }
 
   private calculateSMA50(prices: StockPrice[]): number | null {
-    const sorted = prices
-      .filter((p) => p.closePrice > 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
-
+    const sorted = prices.filter((p) => p.closePrice > 0).sort((a, b) => a.date.localeCompare(b.date));
     if (sorted.length < 50) return null;
-
     const last50 = sorted.slice(-50);
     return last50.reduce((sum, p) => sum + p.closePrice, 0) / 50;
   }
@@ -244,56 +236,92 @@ export class DatabaseStorage implements IStorage {
       .filter((p) => p.volume != null && p.volume > 0)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, period);
-
     if (withVol.length < 1) return null;
-
     const avgVol = withVol.reduce((sum, p) => sum + p.volume!, 0) / withVol.length;
     return avgVol * currentPrice;
   }
 
+  // ---------------------------------------------------------------------------
+  // getThemesWithPerformance — 2 DB queries total (was N*2+N+1)
+  // ---------------------------------------------------------------------------
   async getThemesWithPerformance(): Promise<ThemeWithPerformance[]> {
-    const allThemes = await this.getThemes();
-    const result: ThemeWithPerformance[] = [];
+    const cached = cacheGet<ThemeWithPerformance[]>("themes_perf");
+    if (cached) return cached;
 
-    for (const theme of allThemes) {
-      const stocks = await this.getThemeStocks(theme.id);
+    // Query 1: themes + their stocks in one join
+    const rows = await db
+      .select({
+        themeId: themes.id,
+        themeName: themes.name,
+        themeDescription: themes.description,
+        symbol: themeStocks.symbol,
+      })
+      .from(themes)
+      .leftJoin(themeStocks, eq(themes.id, themeStocks.themeId));
+
+    // Build theme map and collect all unique symbols
+    const themeMap = new Map<number, { id: number; name: string; description: string | null; symbols: string[] }>();
+    for (const row of rows) {
+      if (!themeMap.has(row.themeId)) {
+        themeMap.set(row.themeId, { id: row.themeId, name: row.themeName, description: row.themeDescription, symbols: [] });
+      }
+      if (row.symbol) themeMap.get(row.themeId)!.symbols.push(row.symbol);
+    }
+
+    const allSymbols = Array.from(new Set(rows.map((r) => r.symbol).filter(Boolean))) as string[];
+    if (allSymbols.length === 0) {
+      const result: ThemeWithPerformance[] = Array.from(themeMap.values()).map((t) => ({
+        id: t.id, name: t.name, description: t.description, stocks: [],
+        avgChange1d: null, avgChange1w: null, avgChange1m: null, avgChange3m: null,
+      }));
+      cacheSet("themes_perf", result, PERF_TTL);
+      return result;
+    }
+
+    // Query 2: all prices for all symbols at once (250-day window)
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 250);
+    const sinceDateStr = sinceDate.toISOString().split("T")[0];
+
+    const allPrices = await db
+      .select()
+      .from(stockPrices)
+      .where(and(inArray(stockPrices.symbol, allSymbols), sql`${stockPrices.date} >= ${sinceDateStr}`))
+      .orderBy(stockPrices.symbol, stockPrices.date);
+
+    // Group prices by symbol in memory
+    const pricesBySymbol = new Map<string, StockPrice[]>();
+    for (const p of allPrices) {
+      if (!pricesBySymbol.has(p.symbol)) pricesBySymbol.set(p.symbol, []);
+      pricesBySymbol.get(p.symbol)!.push(p);
+    }
+
+    const avg = (vals: (number | null)[]) => {
+      const valid = vals.filter((v): v is number => v !== null);
+      return valid.length === 0 ? null : valid.reduce((a, b) => a + b, 0) / valid.length;
+    };
+
+    const result: ThemeWithPerformance[] = [];
+    for (const theme of themeMap.values()) {
       const stockPerformances: StockPerformance[] = [];
 
-      for (const stock of stocks) {
-        const prices = await this.getStockPrices(stock.symbol, 250);
-        const latest = await this.getLatestPrice(stock.symbol);
-
-        const currentPrice = latest?.closePrice ?? null;
+      for (const symbol of theme.symbols) {
+        const prices = pricesBySymbol.get(symbol) ?? [];
+        const sorted = [...prices].sort((a, b) => b.date.localeCompare(a.date));
+        const currentPrice = sorted[0]?.closePrice ?? null;
 
         const change1d = currentPrice !== null ? this.calculateChange(prices, 1, currentPrice) : null;
         const change1w = currentPrice !== null ? this.calculateChange(prices, 7, currentPrice) : null;
         const change1m = currentPrice !== null ? this.calculateChange(prices, 30, currentPrice) : null;
         const change3m = currentPrice !== null ? this.calculateChange(prices, 90, currentPrice) : null;
-
         const adr = this.calculateADR(prices, 20);
         const atr14 = this.calculateATR14(prices);
         const sma50 = this.calculateSMA50(prices);
         const atrMultiple = currentPrice !== null ? this.calculateAtrMultiple(currentPrice, sma50, atr14) : null;
         const dollarVolume = currentPrice !== null ? this.calculateDollarVolume(prices, currentPrice, 20) : null;
 
-        stockPerformances.push({
-          symbol: stock.symbol,
-          currentPrice,
-          adr,
-          atrMultiple,
-          dollarVolume,
-          change1d,
-          change1w,
-          change1m,
-          change3m,
-        });
+        stockPerformances.push({ symbol, currentPrice, adr, atrMultiple, dollarVolume, change1d, change1w, change1m, change3m });
       }
-
-      const avg = (vals: (number | null)[]) => {
-        const valid = vals.filter((v): v is number => v !== null);
-        if (valid.length === 0) return null;
-        return valid.reduce((a, b) => a + b, 0) / valid.length;
-      };
 
       result.push({
         id: theme.id,
@@ -307,9 +335,13 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
+    cacheSet("themes_perf", result, PERF_TTL);
     return result;
   }
 
+  // ---------------------------------------------------------------------------
+  // ETF methods
+  // ---------------------------------------------------------------------------
   async getEtfs(): Promise<Etf[]> {
     return db.select().from(etfs);
   }
@@ -321,24 +353,77 @@ export class DatabaseStorage implements IStorage {
 
   async createEtf(data: InsertEtf): Promise<Etf> {
     const result = await db.insert(etfs).values(data).returning();
+    cacheInvalidate("etfs_perf");
     return result[0];
   }
 
   async updateEtf(id: number, data: Partial<InsertEtf>): Promise<Etf> {
     const result = await db.update(etfs).set(data).where(eq(etfs.id, id)).returning();
-    if (result.length === 0) {
-      throw new Error("ETF not found");
-    }
+    if (result.length === 0) throw new Error("ETF not found");
+    cacheInvalidate("etfs_perf");
     return result[0];
   }
 
   async deleteEtf(id: number): Promise<void> {
     await db.delete(etfs).where(eq(etfs.id, id));
+    cacheInvalidate("etfs_perf");
   }
 
   async getAllEtfSymbols(): Promise<string[]> {
     const result = await db.selectDistinct({ symbol: etfs.symbol }).from(etfs);
     return result.map((r) => r.symbol);
+  }
+
+  // ---------------------------------------------------------------------------
+  // getEtfsWithPerformance — 2 DB queries total (was N*2+1)
+  // ---------------------------------------------------------------------------
+  async getEtfsWithPerformance(): Promise<EtfWithPerformance[]> {
+    const cached = cacheGet<EtfWithPerformance[]>("etfs_perf");
+    if (cached) return cached;
+
+    // Query 1: all ETFs
+    const allEtfs = await this.getEtfs();
+    if (allEtfs.length === 0) return [];
+
+    const symbols = allEtfs.map((e) => e.symbol);
+
+    // Query 2: all prices for all ETF symbols at once (100-day window)
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 100);
+    const sinceDateStr = sinceDate.toISOString().split("T")[0];
+
+    const allPrices = await db
+      .select()
+      .from(stockPrices)
+      .where(and(inArray(stockPrices.symbol, symbols), sql`${stockPrices.date} >= ${sinceDateStr}`))
+      .orderBy(stockPrices.symbol, stockPrices.date);
+
+    const pricesBySymbol = new Map<string, StockPrice[]>();
+    for (const p of allPrices) {
+      if (!pricesBySymbol.has(p.symbol)) pricesBySymbol.set(p.symbol, []);
+      pricesBySymbol.get(p.symbol)!.push(p);
+    }
+
+    const result: EtfWithPerformance[] = allEtfs.map((etf) => {
+      const prices = pricesBySymbol.get(etf.symbol) ?? [];
+      const sorted = [...prices].sort((a, b) => b.date.localeCompare(a.date));
+      const currentPrice = sorted[0]?.closePrice ?? null;
+
+      return {
+        id: etf.id,
+        symbol: etf.symbol,
+        name: etf.name,
+        description: etf.description,
+        currentPrice,
+        change1d: currentPrice !== null ? this.calculateChange(prices, 1, currentPrice) : null,
+        change1w: currentPrice !== null ? this.calculateChange(prices, 7, currentPrice) : null,
+        change1m: currentPrice !== null ? this.calculateChange(prices, 30, currentPrice) : null,
+        change3m: currentPrice !== null ? this.calculateChange(prices, 90, currentPrice) : null,
+      };
+    });
+
+    cacheSet("etfs_perf", result, PERF_TTL);
+    return result;
   }
 
   async getThemesForSymbol(symbol: string): Promise<string[]> {
@@ -365,36 +450,6 @@ export class DatabaseStorage implements IStorage {
 
   async clearChartDrawings(symbol: string): Promise<void> {
     await db.delete(chartDrawings).where(eq(chartDrawings.symbol, symbol));
-  }
-
-  async getEtfsWithPerformance(): Promise<EtfWithPerformance[]> {
-    const allEtfs = await this.getEtfs();
-    const result: EtfWithPerformance[] = [];
-
-    for (const etf of allEtfs) {
-      const prices = await this.getStockPrices(etf.symbol, 100);
-      const latest = await this.getLatestPrice(etf.symbol);
-      const currentPrice = latest?.closePrice ?? null;
-
-      const change1d = currentPrice !== null ? this.calculateChange(prices, 1, currentPrice) : null;
-      const change1w = currentPrice !== null ? this.calculateChange(prices, 7, currentPrice) : null;
-      const change1m = currentPrice !== null ? this.calculateChange(prices, 30, currentPrice) : null;
-      const change3m = currentPrice !== null ? this.calculateChange(prices, 90, currentPrice) : null;
-
-      result.push({
-        id: etf.id,
-        symbol: etf.symbol,
-        name: etf.name,
-        description: etf.description,
-        currentPrice,
-        change1d,
-        change1w,
-        change1m,
-        change3m,
-      });
-    }
-
-    return result;
   }
 }
 
