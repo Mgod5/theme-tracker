@@ -44,9 +44,10 @@ A stock theme performance tracking application. Users create investment themes (
 
 ## Polygon.io API
 - API key stored in `POLYGON_API_KEY` environment secret
-- Current prices: `GET /v2/aggs/ticker/{symbol}/prev` (previous day close with OHLCV)
+- Current prices: `GET /v2/snapshot/locale/us/markets/stocks/tickers?tickers=...` (real-time during market hours, last trade after hours, prev close on weekends)
 - Historical bars: `GET /v2/aggs/ticker/{symbol}/range/1/day/{from}/{to}` (daily OHLCV)
 - All requests use `adjusted=true` for split-adjusted prices
+- Snapshot priority: `lastTrade.p` → `day.c` → `prevDay.c`; up to 250 symbols per batch
 
 ## Yahoo Finance Auth (ETF holdings only)
 - The v10 quoteSummary endpoint requires cookie+crumb authentication

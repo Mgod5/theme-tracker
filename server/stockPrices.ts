@@ -32,42 +32,54 @@ export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string,
   if (symbols.length === 0 || !POLYGON_API_KEY) return prices;
 
   const uniqueSymbols = Array.from(new Set(symbols));
-  const today = new Date().toISOString().split("T")[0];
-  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const results = await Promise.all(
-    uniqueSymbols.map(async (symbol) => {
-      try {
-        const url = `${POLYGON_BASE}/v2/aggs/ticker/${encodeURIComponent(symbol)}/range/1/day/${threeDaysAgo}/${today}?adjusted=true&sort=desc&limit=1&apiKey=${POLYGON_API_KEY}`;
-        const res = await polygonFetch(url);
-        if (!res) return null;
+  // Use the snapshot endpoint — returns real-time price during market hours,
+  // last trade price after hours, or previous close on weekends/holidays.
+  const BATCH = 250;
+  for (let i = 0; i < uniqueSymbols.length; i += BATCH) {
+    const batch = uniqueSymbols.slice(i, i + BATCH);
+    const tickersParam = batch.join(",");
+    const url = `${POLYGON_BASE}/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${encodeURIComponent(tickersParam)}&apiKey=${POLYGON_API_KEY}`;
+    const res = await polygonFetch(url);
+    if (!res) continue;
 
-        const data = await res.json();
-        const bar = data?.results?.[0];
-        if (bar && bar.c != null) {
-          return {
-            symbol,
-            bar: {
-              close: bar.c,
-              open: bar.o ?? null,
-              high: bar.h ?? null,
-              low: bar.l ?? null,
-              volume: bar.v ?? null,
-            } as CurrentBar,
-          };
-        }
-        if (data?.resultsCount === 0) {
-          log(`Polygon: No bars returned for ${symbol}`, "stocks");
-        }
-      } catch (err) {
-        log(`Polygon: Error fetching price for ${symbol}: ${err}`, "stocks");
+    let data: any;
+    try { data = await res.json(); } catch { continue; }
+
+    const tickers: any[] = data?.tickers ?? [];
+    for (const t of tickers) {
+      const sym: string = t.ticker;
+      // Priority: lastTrade (most current) → day.c (session close) → prevDay.c (prior close)
+      const close =
+        (t.lastTrade?.p ?? null) !== null
+          ? t.lastTrade.p
+          : (t.day?.c ?? null) !== null
+          ? t.day.c
+          : t.prevDay?.c ?? null;
+
+      if (close == null) {
+        log(`Polygon snapshot: no price for ${sym}`, "stocks");
+        continue;
       }
-      return null;
-    })
-  );
 
-  for (const r of results) {
-    if (r) prices.set(r.symbol, r.bar);
+      // Use today's session OHLCV if available, else fall back to prevDay
+      const dayBar = t.day ?? {};
+      const prevDay = t.prevDay ?? {};
+      prices.set(sym, {
+        close,
+        open:   dayBar.o  ?? prevDay.o  ?? null,
+        high:   dayBar.h  ?? prevDay.h  ?? null,
+        low:    dayBar.l  ?? prevDay.l  ?? null,
+        volume: dayBar.v  ?? prevDay.v  ?? null,
+      });
+    }
+  }
+
+  // Log any symbols that got no data
+  for (const sym of uniqueSymbols) {
+    if (!prices.has(sym)) {
+      log(`Polygon snapshot: no data for ${sym}`, "stocks");
+    }
   }
 
   return prices;

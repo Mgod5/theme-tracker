@@ -61,6 +61,15 @@ async function backfillThemeStockOHLCV(): Promise<void> {
   }
 }
 
+/** Returns the most recent trading weekday date string (YYYY-MM-DD) */
+function lastTradingDay(): string {
+  const d = new Date();
+  const day = d.getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 0) d.setUTCDate(d.getUTCDate() - 2); // Sunday → Friday
+  else if (day === 6) d.setUTCDate(d.getUTCDate() - 1); // Saturday → Friday
+  return d.toISOString().split("T")[0];
+}
+
 async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   const themeSymbols = await storage.getAllUniqueSymbols();
   const etfSymbols = await storage.getAllEtfSymbols();
@@ -71,13 +80,13 @@ async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   const prices = await fetchCurrentPrices(symbols);
   let updated = 0;
   let errors = 0;
-  const today = new Date().toISOString().split("T")[0];
+  const tradingDate = lastTradingDay();
 
   for (const [symbol, bar] of Array.from(prices.entries())) {
     try {
       await storage.upsertStockPrice({
         symbol,
-        date: today,
+        date: tradingDate,
         closePrice: bar.close,
         openPrice: bar.open,
         highPrice: bar.high,
@@ -94,7 +103,7 @@ async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   const failed = symbols.length - prices.size;
   if (failed > 0) errors += failed;
 
-  log(`Quick refresh: ${updated} updated, ${errors} errors`, "stocks");
+  log(`Quick refresh: ${updated} updated, ${errors} errors for ${tradingDate}`, "stocks");
   return { updated, errors };
 }
 
