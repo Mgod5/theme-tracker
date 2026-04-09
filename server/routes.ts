@@ -70,6 +70,59 @@ function lastTradingDay(): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Detect and fix stock splits by scanning stored prices for large discontinuities */
+async function detectAndFixSplits(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      WITH ranked AS (
+        SELECT symbol, date, close_price,
+               LAG(close_price) OVER (PARTITION BY symbol ORDER BY date) AS prev_close,
+               LAG(date)        OVER (PARTITION BY symbol ORDER BY date) AS prev_date
+        FROM stock_prices
+        WHERE close_price > 0 AND date >= CURRENT_DATE - INTERVAL '30 days'
+      )
+      SELECT symbol,
+             prev_date  AS split_before,
+             date       AS split_after,
+             prev_close AS old_price,
+             close_price AS new_price
+      FROM ranked
+      WHERE prev_close IS NOT NULL
+        AND (close_price / prev_close < 0.5 OR close_price / prev_close > 2.0)
+    `);
+    const splits = result.rows as { symbol: string; split_before: string; split_after: string; old_price: number; new_price: number }[];
+    for (const s of splits) {
+      log(`Split detected for ${s.symbol}: $${s.old_price.toFixed(2)} → $${s.new_price.toFixed(2)} on ${s.split_after} — purging pre-split history`, "stocks");
+      await storage.deleteSymbolHistory(s.symbol, s.split_after);
+      backfillInProgress.delete(s.symbol);
+      backfillSymbol(s.symbol).catch(() => {});
+    }
+  } catch (err) {
+    log(`Split detection error: ${err}`, "stocks");
+  }
+}
+
+/** Force a full re-backfill for a symbol: wipes stored history and re-fetches adjusted data from Polygon */
+async function forceRebackfill(symbol: string): Promise<{ bars: number }> {
+  backfillInProgress.delete(symbol);
+  await storage.deleteSymbolHistory(symbol);
+  log(`Force re-backfill: cleared history for ${symbol}`, "stocks");
+  const historicalPrices = await fetchHistoricalPrices(symbol, 1095);
+  for (const hp of historicalPrices) {
+    await storage.upsertStockPrice({
+      symbol,
+      date: hp.date,
+      openPrice: hp.open,
+      highPrice: hp.high,
+      lowPrice: hp.low,
+      closePrice: hp.close,
+      volume: hp.volume,
+    });
+  }
+  log(`Force re-backfill: stored ${historicalPrices.length} bars for ${symbol}`, "stocks");
+  return { bars: historicalPrices.length };
+}
+
 async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   const themeSymbols = await storage.getAllUniqueSymbols();
   const etfSymbols = await storage.getAllEtfSymbols();
@@ -104,6 +157,10 @@ async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   if (failed > 0) errors += failed;
 
   log(`Quick refresh: ${updated} updated, ${errors} errors for ${tradingDate}`, "stocks");
+
+  // Run split detection after storing prices — fixes any symbols with corrupted pre-split data
+  detectAndFixSplits().catch(() => {});
+
   return { updated, errors };
 }
 
@@ -425,6 +482,18 @@ export async function registerRoutes(
     } catch (err) {
       log(`Error updating prices: ${err}`, "api");
       res.status(500).json({ message: "Failed to update prices" });
+    }
+  });
+
+  app.post("/api/stocks/:symbol/rebackfill", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    try {
+      log(`Manual re-backfill requested for ${symbol}`, "stocks");
+      const result = await forceRebackfill(symbol);
+      res.json({ message: `Re-backfilled ${symbol}: ${result.bars} bars stored`, ...result });
+    } catch (err) {
+      log(`Error re-backfilling ${symbol}: ${err}`, "stocks");
+      res.status(500).json({ message: `Failed to re-backfill ${symbol}` });
     }
   });
 
