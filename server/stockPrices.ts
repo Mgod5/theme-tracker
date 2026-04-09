@@ -49,28 +49,33 @@ export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string,
     const tickers: any[] = data?.tickers ?? [];
     for (const t of tickers) {
       const sym: string = t.ticker;
-      // Priority: lastTrade (most current) → day.c (session close) → prevDay.c (prior close)
+      // Priority: lastTrade (most current) → day.c (intraday/session) → prevDay.c (prior close)
+      // Use > 0 checks so zero values fall through to the next source
       const close =
-        (t.lastTrade?.p ?? null) !== null
+        (t.lastTrade?.p ?? 0) > 0
           ? t.lastTrade.p
-          : (t.day?.c ?? null) !== null
+          : (t.day?.c ?? 0) > 0
           ? t.day.c
-          : t.prevDay?.c ?? null;
+          : (t.prevDay?.c ?? 0) > 0
+          ? t.prevDay.c
+          : null;
 
-      if (close == null) {
+      if (!close || close <= 0) {
         log(`Polygon snapshot: no price for ${sym}`, "stocks");
         continue;
       }
 
-      // Use today's session OHLCV if available, else fall back to prevDay
+      // Use today's session OHLCV if available (and non-zero), else fall back to prevDay
       const dayBar = t.day ?? {};
       const prevDay = t.prevDay ?? {};
+      const pickNonZero = (a: number | undefined, b: number | undefined): number | null =>
+        (a != null && a > 0) ? a : (b != null && b > 0) ? b : null;
       prices.set(sym, {
         close,
-        open:   dayBar.o  ?? prevDay.o  ?? null,
-        high:   dayBar.h  ?? prevDay.h  ?? null,
-        low:    dayBar.l  ?? prevDay.l  ?? null,
-        volume: dayBar.v  ?? prevDay.v  ?? null,
+        open:   pickNonZero(dayBar.o, prevDay.o),
+        high:   pickNonZero(dayBar.h, prevDay.h),
+        low:    pickNonZero(dayBar.l, prevDay.l),
+        volume: (dayBar.v ?? prevDay.v ?? null),
       });
     }
   }
