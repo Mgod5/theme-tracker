@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, sql, lt } from "drizzle-orm";
 import {
   themes,
   themeStocks,
@@ -62,6 +62,7 @@ export interface IStorage {
   getEtfsWithPerformance(): Promise<EtfWithPerformance[]>;
   getAllEtfSymbols(): Promise<string[]>;
   getThemesForSymbol(symbol: string): Promise<string[]>;
+  deleteSymbolHistory(symbol: string, beforeDate?: string): Promise<void>;
   getChartDrawings(symbol: string): Promise<ChartDrawing[]>;
   createChartDrawing(symbol: string, type: string, data: string): Promise<ChartDrawing>;
   deleteChartDrawing(id: number): Promise<void>;
@@ -433,6 +434,17 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(themes, eq(themeStocks.themeId, themes.id))
       .where(eq(themeStocks.symbol, symbol));
     return result.map((r) => r.name);
+  }
+
+  async deleteSymbolHistory(symbol: string, beforeDate?: string): Promise<void> {
+    if (beforeDate) {
+      await db
+        .delete(stockPrices)
+        .where(and(eq(stockPrices.symbol, symbol), lt(stockPrices.date, beforeDate)));
+    } else {
+      await db.delete(stockPrices).where(eq(stockPrices.symbol, symbol));
+    }
+    cacheInvalidate("themes_perf", "etfs_perf");
   }
 
   async getChartDrawings(symbol: string): Promise<ChartDrawing[]> {
