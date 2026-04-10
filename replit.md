@@ -47,7 +47,8 @@ A stock theme performance tracking application. Users create investment themes (
 - Current prices: `GET /v2/snapshot/locale/us/markets/stocks/tickers?tickers=...` (real-time during market hours, last trade after hours, prev close on weekends)
 - Historical bars: `GET /v2/aggs/ticker/{symbol}/range/1/day/{from}/{to}` (daily OHLCV)
 - All requests use `adjusted=true` for split-adjusted prices
-- Snapshot priority: `lastTrade.p` → `day.c` → `prevDay.c`; up to 250 symbols per batch
+- Snapshot price priority: `lastTrade.p` → `min.c` (last minute bar) → `day.c` → `prevDay.c`; up to 250 symbols per batch
+- Every refresh writes `prevDay.c` back to yesterday's DB row so `change1d` is always vs official prior close
 
 ## Yahoo Finance Auth (ETF holdings only)
 - The v10 quoteSummary endpoint requires cookie+crumb authentication
@@ -63,6 +64,9 @@ A stock theme performance tracking application. Users create investment themes (
 - Sync module: `server/githubSync.ts` — uses `@replit/connectors-sdk` to proxy GitHub API calls
 
 ## Recent Changes
+- 2026-04-10: Fixed intraday price accuracy — added `min.c` (last minute bar) to snapshot price priority so prices update correctly at market open; also writes `prevDay.c` back to yesterday's DB row each refresh so `change1d` always reflects live price vs official prior close
+- 2026-04-09: Added stock split auto-detection — scans last 30 days for price discontinuities >50% and purges/re-backfills affected symbols; added `POST /api/stocks/:symbol/rebackfill` endpoint for manual correction; fixed `fetchCurrentPrices` to skip 0-value price fields
+- 2026-04-09: Fixed `close_price = 0` bug in production — snapshot `lastTrade.p`/`day.c` returning 0 was being stored; all price source checks now use `> 0` instead of `!= null`
 - 2026-04-03: Added auto GitHub sync — mirrors code to https://github.com/Mgod5/theme-tracker on startup and daily at 5PM EST; manual trigger via POST /api/github/sync
 - 2026-04-01: Increased historical data backfill from 100 to 1095 days (3 years); chart endpoint queries 1095 days; no additional API feeds/costs (Polygon Massive tier supports 15+ years)
 - 2026-04-01: Added drawing tools to stock chart page — Trend Line (click 2 points, extended line across chart) and Text annotation (click to place, type label); SVG overlay with amber color; Clear All button; Escape cancels pending drawing; drawings re-render correctly on chart scroll/zoom
