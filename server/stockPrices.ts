@@ -54,11 +54,13 @@ export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string,
     const tickers: any[] = data?.tickers ?? [];
     for (const t of tickers) {
       const sym: string = t.ticker;
-      // Priority: lastTrade (most current) → day.c (intraday/session) → prevDay.c (prior close)
+      // Priority: lastTrade.p → min.c (last minute bar, best intraday source) → day.c → prevDay.c
       // Use > 0 checks so zero values fall through to the next source
       const close =
         (t.lastTrade?.p ?? 0) > 0
           ? t.lastTrade.p
+          : (t.min?.c ?? 0) > 0
+          ? t.min.c
           : (t.day?.c ?? 0) > 0
           ? t.day.c
           : (t.prevDay?.c ?? 0) > 0
@@ -70,17 +72,19 @@ export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string,
         continue;
       }
 
-      // Use today's session OHLCV if available (and non-zero), else fall back to prevDay
+      // Use today's session OHLCV if available (and non-zero), else fall back to prevDay.
+      // For intraday, min.av gives accumulated volume since open.
       const dayBar = t.day ?? {};
+      const minBar = t.min ?? {};
       const prevDay = t.prevDay ?? {};
-      const pickNonZero = (a: number | undefined, b: number | undefined): number | null =>
-        (a != null && a > 0) ? a : (b != null && b > 0) ? b : null;
+      const pickNonZero = (a: number | undefined, b: number | undefined, c?: number | undefined): number | null =>
+        (a != null && a > 0) ? a : (b != null && b > 0) ? b : (c != null && c > 0) ? c : null;
       prices.set(sym, {
         close,
-        open:   pickNonZero(dayBar.o, prevDay.o),
-        high:   pickNonZero(dayBar.h, prevDay.h),
-        low:    pickNonZero(dayBar.l, prevDay.l),
-        volume: (dayBar.v ?? prevDay.v ?? null),
+        open:   pickNonZero(dayBar.o, minBar.o, prevDay.o),
+        high:   pickNonZero(dayBar.h, minBar.h, prevDay.h),
+        low:    pickNonZero(dayBar.l, minBar.l, prevDay.l),
+        volume: (dayBar.v ?? 0) > 0 ? dayBar.v : (minBar.av ?? minBar.v ?? prevDay.v ?? null),
         prevDayClose:  (prevDay.c ?? 0) > 0 ? prevDay.c : null,
         prevDayOpen:   (prevDay.o ?? 0) > 0 ? prevDay.o : null,
         prevDayHigh:   (prevDay.h ?? 0) > 0 ? prevDay.h : null,
