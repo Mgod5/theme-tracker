@@ -70,6 +70,17 @@ function lastTradingDay(): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Returns the trading day before the most recent one (YYYY-MM-DD) */
+function prevTradingDay(): string {
+  const d = new Date();
+  const day = d.getUTCDay();
+  if (day === 0) d.setUTCDate(d.getUTCDate() - 3); // Sunday → Thursday
+  else if (day === 1) d.setUTCDate(d.getUTCDate() - 3); // Monday → Friday
+  else if (day === 6) d.setUTCDate(d.getUTCDate() - 2); // Saturday → Thursday
+  else d.setUTCDate(d.getUTCDate() - 1); // Tue–Fri → previous day
+  return d.toISOString().split("T")[0];
+}
+
 /** Detect and fix stock splits by scanning stored prices for large discontinuities */
 async function detectAndFixSplits(): Promise<void> {
   try {
@@ -134,9 +145,11 @@ async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
   let updated = 0;
   let errors = 0;
   const tradingDate = lastTradingDay();
+  const prevDate = prevTradingDay();
 
   for (const [symbol, bar] of Array.from(prices.entries())) {
     try {
+      // Write today's current (live) price
       await storage.upsertStockPrice({
         symbol,
         date: tradingDate,
@@ -146,6 +159,21 @@ async function updateAllPrices(): Promise<{ updated: number; errors: number }> {
         lowPrice: bar.low,
         volume: bar.volume,
       });
+
+      // Always write the previous session's official close so change1d is accurate
+      // regardless of what time of day the refresh runs
+      if (bar.prevDayClose && bar.prevDayClose > 0) {
+        await storage.upsertStockPrice({
+          symbol,
+          date: prevDate,
+          closePrice: bar.prevDayClose,
+          openPrice: bar.prevDayOpen,
+          highPrice: bar.prevDayHigh,
+          lowPrice: bar.prevDayLow,
+          volume: bar.prevDayVolume,
+        });
+      }
+
       updated++;
     } catch (err) {
       errors++;

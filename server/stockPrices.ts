@@ -81,6 +81,11 @@ export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string,
         high:   pickNonZero(dayBar.h, prevDay.h),
         low:    pickNonZero(dayBar.l, prevDay.l),
         volume: (dayBar.v ?? prevDay.v ?? null),
+        prevDayClose:  (prevDay.c ?? 0) > 0 ? prevDay.c : null,
+        prevDayOpen:   (prevDay.o ?? 0) > 0 ? prevDay.o : null,
+        prevDayHigh:   (prevDay.h ?? 0) > 0 ? prevDay.h : null,
+        prevDayLow:    (prevDay.l ?? 0) > 0 ? prevDay.l : null,
+        prevDayVolume: prevDay.v ?? null,
       });
     }
   }
