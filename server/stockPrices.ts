@@ -25,6 +25,11 @@ export interface CurrentBar {
   high: number | null;
   low: number | null;
   volume: number | null;
+  prevDayClose: number | null;
+  prevDayOpen: number | null;
+  prevDayHigh: number | null;
+  prevDayLow: number | null;
+  prevDayVolume: number | null;
 }
 
 export async function fetchCurrentPrices(symbols: string[]): Promise<Map<string, CurrentBar>> {
