@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -145,10 +145,7 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
     }
   };
 
-  const sortedStocks = useMemo(
-    () => sortStocks(theme.stocks, sortCol, sortDir),
-    [theme.stocks, sortCol, sortDir]
-  );
+  const sortedStocks = sortStocks(theme.stocks, sortCol, sortDir);
 
   useEffect(() => {
     if (editing && editInputRef.current) {
@@ -361,7 +358,7 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
                 <tbody>
                   {sortedStocks.map((stock: StockPerformance, idx: number) => (
                     <tr
-                      key={stock.symbol}
+                      key={`${theme.id}-${stock.symbol}`}
                       className={`transition-colors ${idx < sortedStocks.length - 1 ? "border-b" : ""}`}
                       data-testid={`row-stock-${stock.symbol}`}
                     >
