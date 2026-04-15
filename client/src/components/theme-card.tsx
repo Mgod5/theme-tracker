@@ -82,19 +82,21 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 function SortableTh({
-  label, sortKey, currentKey, dir, onSort, align = "right", className = ""
+  label, colKey, activeCol, dir, onSort, align = "right", className = ""
 }: {
-  label: string; sortKey: StockSortKey; currentKey: StockSortKey; dir: SortDir;
+  label: string; colKey: StockSortKey; activeCol: StockSortKey; dir: SortDir;
   onSort: (k: StockSortKey) => void; align?: "left" | "right"; className?: string;
 }) {
-  const active = currentKey === sortKey;
+  const active = activeCol === colKey;
   return (
     <th
-      className={`py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${align === "right" ? "text-right" : "text-left"} ${className}`}
-      onClick={() => onSort(sortKey)}
+      className={`py-3 px-5 font-semibold text-xs uppercase tracking-wider cursor-pointer select-none transition-colors ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"} ${align === "right" ? "text-right" : "text-left"} ${className}`}
+      onClick={(e) => { e.stopPropagation(); onSort(colKey); }}
     >
       <span className="inline-flex items-center gap-0.5">
-        {align === "left" ? <><SortIcon active={active} dir={dir} />{label}</> : <>{label}<SortIcon active={active} dir={dir} /></>}
+        {align === "left"
+          ? <><SortIcon active={active} dir={dir} />{label}</>
+          : <>{label}<SortIcon active={active} dir={dir} /></>}
       </span>
     </th>
   );
@@ -129,19 +131,23 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(theme.name);
-  const [sortKey, setSortKey] = useState<StockSortKey>("change1d");
+  const [sortCol, setSortCol] = useState<StockSortKey>("change1d");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const editInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleSort = (key: StockSortKey) => {
-    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("desc"); }
+  const handleSort = (col: StockSortKey) => {
+    if (col === sortCol) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("desc");
+    }
   };
 
   const sortedStocks = useMemo(
-    () => sortStocks(theme.stocks, sortKey, sortDir),
-    [theme.stocks, sortKey, sortDir]
+    () => sortStocks(theme.stocks, sortCol, sortDir),
+    [theme.stocks, sortCol, sortDir]
   );
 
   useEffect(() => {
@@ -340,15 +346,15 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
               <table className="w-full text-sm" data-testid={`table-stocks-${theme.id}`}>
                 <thead>
                   <tr className="bg-muted/40">
-                    <SortableTh label="Symbol" sortKey="symbol" currentKey={sortKey} dir={sortDir} onSort={handleSort} align="left" className="border-r-2 border-border" />
-                    <SortableTh label="$ Vol" sortKey="dollarVolume" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="ATR Mult" sortKey="atrMultiple" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="ADR" sortKey="adr" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="Price" sortKey="currentPrice" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Day" sortKey="change1d" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Week" sortKey="change1w" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Month" sortKey="change1m" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="3 Months" sortKey="change3m" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="Symbol" colKey="symbol" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="border-r-2 border-border" />
+                    <SortableTh label="$ Vol" colKey="dollarVolume" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="ATR Mult" colKey="atrMultiple" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="ADR" colKey="adr" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="Price" colKey="currentPrice" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Day" colKey="change1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Week" colKey="change1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Month" colKey="change1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="3 Months" colKey="change3m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
                     <th className="w-12 py-3 px-3"></th>
                   </tr>
                 </thead>
