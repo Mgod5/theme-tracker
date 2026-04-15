@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -18,6 +18,9 @@ import {
   X,
   Pencil,
   Check,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { AddStockDialog } from "@/components/add-stock-dialog";
 import {
@@ -68,6 +71,46 @@ function PerformanceIcon({ value, className }: { value: number | null; className
   return <Minus className={`${iconClass} text-muted-foreground`} />;
 }
 
+type StockSortKey = "symbol" | "dollarVolume" | "atrMultiple" | "adr" | "currentPrice" | "change1d" | "change1w" | "change1m" | "change3m";
+type SortDir = "asc" | "desc";
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ChevronsUpDown className="w-3 h-3 ml-1 text-muted-foreground/40" />;
+  return dir === "asc"
+    ? <ChevronUp className="w-3 h-3 ml-1 text-primary" />
+    : <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
+}
+
+function SortableTh({
+  label, sortKey, currentKey, dir, onSort, align = "right", className = ""
+}: {
+  label: string; sortKey: StockSortKey; currentKey: StockSortKey; dir: SortDir;
+  onSort: (k: StockSortKey) => void; align?: "left" | "right"; className?: string;
+}) {
+  const active = currentKey === sortKey;
+  return (
+    <th
+      className={`py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${align === "right" ? "text-right" : "text-left"} ${className}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {align === "left" ? <><SortIcon active={active} dir={dir} />{label}</> : <>{label}<SortIcon active={active} dir={dir} /></>}
+      </span>
+    </th>
+  );
+}
+
+function sortStocks(stocks: StockPerformance[], key: StockSortKey, dir: SortDir): StockPerformance[] {
+  return [...stocks].sort((a, b) => {
+    let av: string | number | null = a[key] as string | number | null;
+    let bv: string | number | null = b[key] as string | number | null;
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+    return dir === "asc" ? cmp : -cmp;
+  });
+}
+
 function PerformanceCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className={`flex flex-col items-center gap-1 rounded-md px-4 py-2.5 ${getPerformanceBg(value)}`}>
@@ -86,8 +129,20 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(theme.name);
+  const [sortKey, setSortKey] = useState<StockSortKey>("change1d");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const editInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleSort = (key: StockSortKey) => {
+    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+  };
+
+  const sortedStocks = useMemo(
+    () => sortStocks(theme.stocks, sortKey, sortDir),
+    [theme.stocks, sortKey, sortDir]
+  );
 
   useEffect(() => {
     if (editing && editInputRef.current) {
@@ -285,23 +340,23 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
               <table className="w-full text-sm" data-testid={`table-stocks-${theme.id}`}>
                 <thead>
                   <tr className="bg-muted/40">
-                    <th className="text-left py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground border-r-2 border-border">Symbol</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">$ Vol</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">ATR Mult</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">ADR</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Price</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">1 Day</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">1 Week</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">1 Month</th>
-                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider text-muted-foreground">3 Months</th>
+                    <SortableTh label="Symbol" sortKey="symbol" currentKey={sortKey} dir={sortDir} onSort={handleSort} align="left" className="border-r-2 border-border" />
+                    <SortableTh label="$ Vol" sortKey="dollarVolume" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="ATR Mult" sortKey="atrMultiple" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="ADR" sortKey="adr" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="Price" sortKey="currentPrice" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Day" sortKey="change1d" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Week" sortKey="change1w" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="1 Month" sortKey="change1m" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableTh label="3 Months" sortKey="change3m" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                     <th className="w-12 py-3 px-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {theme.stocks.map((stock: StockPerformance, idx: number) => (
+                  {sortedStocks.map((stock: StockPerformance, idx: number) => (
                     <tr
                       key={stock.symbol}
-                      className={`transition-colors ${idx < theme.stocks.length - 1 ? "border-b" : ""}`}
+                      className={`transition-colors ${idx < sortedStocks.length - 1 ? "border-b" : ""}`}
                       data-testid={`row-stock-${stock.symbol}`}
                     >
                       <td className="py-3 px-5 border-r-2 border-border">

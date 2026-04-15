@@ -18,8 +18,10 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   Maximize2,
   Minimize2,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -536,10 +538,31 @@ function EtfCard({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expande
   );
 }
 
+type EtfSortKey = "name" | "currentPrice" | "change1d" | "change1w" | "change1m" | "change3m";
+type EtfSortDir = "asc" | "desc";
+
+function sortEtfs(list: EtfWithPerformance[], key: EtfSortKey, dir: EtfSortDir): EtfWithPerformance[] {
+  return [...list].sort((a, b) => {
+    const av = a[key] as string | number | null;
+    const bv = b[key] as string | number | null;
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+    return dir === "asc" ? cmp : -cmp;
+  });
+}
+
 export default function Etfs() {
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [etfSortKey, setEtfSortKey] = useState<EtfSortKey>("name");
+  const [etfSortDir, setEtfSortDir] = useState<EtfSortDir>("asc");
+
+  const handleEtfSort = (key: EtfSortKey) => {
+    if (key === etfSortKey) setEtfSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setEtfSortKey(key); setEtfSortDir(key === "name" ? "asc" : "desc"); }
+  };
 
   const { data: lastUpdatedData } = useQuery<{ lastUpdated: string | null }>({
     queryKey: ["/api/prices/last-updated"],
@@ -700,16 +723,44 @@ export default function Etfs() {
             <AddEtfDialog />
           </div>
         ) : (
-          <div className="space-y-4">
-            {etfList?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((etf) => (
-              <EtfCard
-                key={etf.id}
-                etf={etf}
-                expanded={expandedIds.has(etf.id)}
-                onToggle={() => toggleOne(etf.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="flex items-center gap-1.5 flex-wrap mb-3 text-xs text-muted-foreground">
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              <span className="font-medium mr-1">Sort:</span>
+              {(["name", "currentPrice", "change1d", "change1w", "change1m", "change3m"] as EtfSortKey[]).map((key) => {
+                const labels: Record<EtfSortKey, string> = {
+                  name: "Name", currentPrice: "Price", change1d: "1 Day",
+                  change1w: "1 Week", change1m: "1 Month", change3m: "3 Months",
+                };
+                const active = etfSortKey === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleEtfSort(key)}
+                    data-testid={`button-sort-etf-${key}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors select-none ${active ? "bg-primary text-primary-foreground border-primary" : "border-border bg-muted/40 hover:bg-muted"}`}
+                  >
+                    {labels[key]}
+                    {active ? (
+                      etfSortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                    ) : (
+                      <ChevronsUpDown className="w-3 h-3 opacity-40" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-4">
+              {sortEtfs(etfList ?? [], etfSortKey, etfSortDir).map((etf) => (
+                <EtfCard
+                  key={etf.id}
+                  etf={etf}
+                  expanded={expandedIds.has(etf.id)}
+                  onToggle={() => toggleOne(etf.id)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
