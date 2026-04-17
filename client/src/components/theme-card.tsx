@@ -355,7 +355,7 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
                     <th className="w-12 py-3 px-3"></th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody key={`${theme.id}-${sortCol}-${sortDir}`}>
                   {sortedStocks.map((stock: StockPerformance, idx: number) => (
                     <tr
                       key={`${theme.id}-${stock.symbol}`}
