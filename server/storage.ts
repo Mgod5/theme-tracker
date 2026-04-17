@@ -50,6 +50,7 @@ export interface IStorage {
   removeStockFromTheme(themeId: number, symbol: string): Promise<void>;
   getAllUniqueSymbols(): Promise<string[]>;
   upsertStockPrice(data: InsertStockPrice): Promise<void>;
+  upsertManyStockPrices(data: InsertStockPrice[]): Promise<void>;
   getStockPrices(symbol: string, sinceDays: number): Promise<StockPrice[]>;
   getLatestPrice(symbol: string): Promise<StockPrice | undefined>;
   updateTheme(id: number, data: Partial<InsertTheme>): Promise<Theme>;
@@ -134,7 +135,29 @@ export class DatabaseStorage implements IStorage {
           fetchedAt: new Date(),
         },
       });
-    // Invalidate caches so fresh data is served after a price update
+    cacheInvalidate("themes_perf", "etfs_perf");
+  }
+
+  async upsertManyStockPrices(data: InsertStockPrice[]): Promise<void> {
+    if (data.length === 0) return;
+    const CHUNK = 500;
+    for (let i = 0; i < data.length; i += CHUNK) {
+      const chunk = data.slice(i, i + CHUNK);
+      await db
+        .insert(stockPrices)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: [stockPrices.symbol, stockPrices.date],
+          set: {
+            closePrice: sql`excluded.close_price`,
+            openPrice: sql`excluded.open_price`,
+            highPrice: sql`excluded.high_price`,
+            lowPrice: sql`excluded.low_price`,
+            volume: sql`excluded.volume`,
+            fetchedAt: sql`now()`,
+          },
+        });
+    }
     cacheInvalidate("themes_perf", "etfs_perf");
   }
 

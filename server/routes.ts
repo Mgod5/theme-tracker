@@ -23,8 +23,8 @@ async function backfillSymbol(symbol: string): Promise<void> {
   log(`Backfilling ${symbol} (${prices.length} bars on hand)`, "stocks");
   try {
     const historicalPrices = await fetchHistoricalPrices(symbol, 1095);
-    for (const hp of historicalPrices) {
-      await storage.upsertStockPrice({
+    await storage.upsertManyStockPrices(
+      historicalPrices.map((hp) => ({
         symbol,
         date: hp.date,
         openPrice: hp.open,
@@ -32,8 +32,8 @@ async function backfillSymbol(symbol: string): Promise<void> {
         lowPrice: hp.low,
         closePrice: hp.close,
         volume: hp.volume,
-      });
-    }
+      }))
+    );
     log(`Backfilled ${historicalPrices.length} bars for ${symbol}`, "stocks");
   } catch (err) {
     log(`Failed to backfill ${symbol}: ${err}`, "stocks");
