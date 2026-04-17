@@ -33,11 +33,15 @@ export function AddStockDialog({ themeId, themeName }: AddStockDialogProps) {
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, _vars, _ctx) => {
+      const sym = symbol.toUpperCase().trim();
       queryClient.invalidateQueries({ queryKey: ["/api/themes"] });
-      toast({ title: "Stock added", description: `${symbol.toUpperCase()} added to "${themeName}".` });
+      toast({ title: `${sym} added`, description: "Price history loading in the background." });
       setSymbol("");
       setOpen(false);
+      // Re-fetch after prices have had time to backfill
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["/api/themes"] }), 5000);
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["/api/themes"] }), 12000);
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -78,7 +82,7 @@ export function AddStockDialog({ themeId, themeName }: AddStockDialogProps) {
             data-testid="input-stock-symbol"
           />
           <p className="text-xs text-muted-foreground">
-            Historical price data will be fetched automatically after adding.
+            Price history loads in the background — the stock appears instantly.
           </p>
         </div>
         <DialogFooter>

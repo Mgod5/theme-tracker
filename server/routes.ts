@@ -272,28 +272,14 @@ export async function registerRoutes(
       }
 
       const cleanSymbol = symbol.toUpperCase().trim();
-
       const stock = await storage.addStockToTheme({ themeId, symbol: cleanSymbol });
 
-      try {
-        const historicalPrices = await fetchHistoricalPrices(cleanSymbol, 1095);
-        for (const hp of historicalPrices) {
-          await storage.upsertStockPrice({
-            symbol: cleanSymbol,
-            date: hp.date,
-            openPrice: hp.open,
-            highPrice: hp.high,
-            lowPrice: hp.low,
-            closePrice: hp.close,
-            volume: hp.volume,
-          });
-        }
-        log(`Fetched ${historicalPrices.length} historical prices for ${cleanSymbol}`, "stocks");
-      } catch (err) {
-        log(`Warning: Could not fetch historical prices for ${cleanSymbol}: ${err}`, "stocks");
-      }
-
+      // Respond immediately — backfill runs in the background
       res.status(201).json(stock);
+
+      backfillSymbol(cleanSymbol).catch((err) =>
+        log(`Background backfill failed for ${cleanSymbol}: ${err}`, "stocks")
+      );
     } catch (err: any) {
       if (err.message?.includes("already in this theme")) {
         return res.status(409).json({ message: err.message });
@@ -715,25 +701,24 @@ export async function registerRoutes(
         symbol: parsed.data.symbol.toUpperCase().trim(),
       });
 
-      try {
-        const historicalPrices = await fetchHistoricalPrices(etf.symbol, 365);
-        for (const hp of historicalPrices) {
-          await storage.upsertStockPrice({
-            symbol: etf.symbol,
-            date: hp.date,
-            openPrice: hp.open,
-            highPrice: hp.high,
-            lowPrice: hp.low,
-            closePrice: hp.close,
-            volume: hp.volume,
-          });
-        }
-        log(`Fetched ${historicalPrices.length} historical prices for ETF ${etf.symbol}`, "stocks");
-      } catch (err) {
-        log(`Warning: Could not fetch historical prices for ETF ${etf.symbol}: ${err}`, "stocks");
-      }
-
+      // Respond immediately — backfill runs in the background
       res.status(201).json(etf);
+
+      fetchHistoricalPrices(etf.symbol, 1095)
+        .then((historicalPrices) =>
+          storage.upsertManyStockPrices(
+            historicalPrices.map((hp) => ({
+              symbol: etf.symbol,
+              date: hp.date,
+              openPrice: hp.open,
+              highPrice: hp.high,
+              lowPrice: hp.low,
+              closePrice: hp.close,
+              volume: hp.volume,
+            }))
+          ).then(() => log(`Backfilled ${historicalPrices.length} bars for ETF ${etf.symbol}`, "stocks"))
+        )
+        .catch((err) => log(`Warning: Could not backfill ETF ${etf.symbol}: ${err}`, "stocks"));
     } catch (err) {
       log(`Error creating ETF: ${err}`, "api");
       res.status(500).json({ message: "Failed to create ETF" });

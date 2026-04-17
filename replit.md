@@ -64,6 +64,8 @@ A stock theme performance tracking application. Users create investment themes (
 - Sync module: `server/githubSync.ts` — uses `@replit/connectors-sdk` to proxy GitHub API calls
 
 ## Recent Changes
+- 2026-04-17: Performance — add stock/ETF now responds instantly; historical backfill runs in background using bulk upsert (`upsertManyStockPrices`, 500-row chunks) instead of sequential per-row inserts; frontend auto-refetches at 5s and 12s after add to pick up backfilled prices
+- 2026-04-17: Fixed sort duplicate-row bug — removed `useMemo` from `sortedStocks` (computed inline), changed row keys from `key={symbol}` to `key={themeId-symbol}` so React never confuses rows across expanded theme cards
 - 2026-04-10: Fixed intraday price accuracy — added `min.c` (last minute bar) to snapshot price priority so prices update correctly at market open; also writes `prevDay.c` back to yesterday's DB row each refresh so `change1d` always reflects live price vs official prior close
 - 2026-04-09: Added stock split auto-detection — scans last 30 days for price discontinuities >50% and purges/re-backfills affected symbols; added `POST /api/stocks/:symbol/rebackfill` endpoint for manual correction; fixed `fetchCurrentPrices` to skip 0-value price fields
 - 2026-04-09: Fixed `close_price = 0` bug in production — snapshot `lastTrade.p`/`day.c` returning 0 was being stored; all price source checks now use `> 0` instead of `!= null`

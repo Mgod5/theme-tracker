@@ -34,12 +34,15 @@ export function AddEtfDialog() {
       return res.json();
     },
     onSuccess: () => {
+      const sym = symbol.trim().toUpperCase();
       queryClient.invalidateQueries({ queryKey: ["/api/etfs"] });
-      toast({ title: "ETF added", description: `${symbol.trim().toUpperCase()} has been added.` });
+      toast({ title: `${sym} added`, description: "Price history loading in the background." });
       setSymbol("");
       setName("");
       setDescription("");
       setOpen(false);
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["/api/etfs"] }), 5000);
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["/api/etfs"] }), 12000);
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
