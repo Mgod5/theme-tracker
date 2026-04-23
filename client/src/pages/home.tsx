@@ -135,18 +135,19 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-3">
               {lastUpdatedData?.lastUpdated && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap" data-testid="text-last-refreshed">
+                <span className="hidden sm:block text-xs text-muted-foreground whitespace-nowrap" data-testid="text-last-refreshed">
                   Updated {formatTimestamp(lastUpdatedData.lastUpdated)}
                 </span>
               )}
               <Button
                 variant="outline"
+                size="default"
                 onClick={() => refreshMutation.mutate()}
                 disabled={refreshing || refreshMutation.isPending}
                 data-testid="button-refresh-prices"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh Prices
+                <RefreshCw className={`w-4 h-4 sm:mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Refresh Prices</span>
               </Button>
               <AddThemeDialog />
             </div>
@@ -195,12 +196,12 @@ export default function Home() {
             <AddThemeDialog />
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60 shadow-sm">
-            <table className="w-full text-sm">
+          <div className="border rounded-lg border-t-2 border-t-primary/60 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm min-w-[680px]">
               <thead>
                 <tr className="bg-muted border-b-2 border-border">
-                  <th className="w-10 py-3 px-4"></th>
-                  <SortableTh label="Theme Name" colKey="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="border-r border-border" />
+                  <th className="w-10 py-3 px-4 sticky left-0 z-10 bg-muted"></th>
+                  <SortableTh label="Theme Name" colKey="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="border-r border-border sticky left-10 z-10 bg-muted shadow-[2px_0_6px_rgba(0,0,0,0.35)]" />
                   <SortableTh label="Stocks" colKey="stocks" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" className="border-r border-border" />
                   <SortableTh label="1 Day" colKey="avgChange1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} className="border-r border-border" />
                   <SortableTh label="1 Week" colKey="avgChange1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} className="border-r border-border" />
