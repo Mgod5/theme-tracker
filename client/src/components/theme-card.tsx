@@ -205,7 +205,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
   return (
     <>
       <tr
-        className={`border-b hover:bg-muted/30 transition-colors cursor-pointer ${isExpanded ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
+        className={`border-b border-border transition-colors cursor-pointer ${isExpanded ? "bg-blue-50 dark:bg-blue-950/30" : "bg-card hover:bg-muted/60"}`}
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`row-theme-${theme.id}`}
       >
@@ -221,7 +221,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[200px] border-r border-border/60">
+        <td className="py-3 px-4 min-w-[200px] border-r border-border">
           {editing ? (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <Input
@@ -263,19 +263,19 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           )}
         </td>
 
-        <td className="py-3 px-4 text-center border-r border-border/40">
+        <td className="py-3 px-4 text-center border-r border-border">
           <span className="text-xs font-medium text-muted-foreground tabular-nums">
             {stockCount}
           </span>
         </td>
 
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={theme.avgChange1d} />
         </td>
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={theme.avgChange1w} />
         </td>
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={theme.avgChange1m} />
         </td>
         <td className="py-3 px-4 text-right">

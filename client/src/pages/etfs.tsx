@@ -675,13 +675,13 @@ export default function Etfs() {
           <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-muted/60 border-b">
+                <tr className="bg-muted border-b-2 border-border">
                   <th className="w-10 py-3 px-4"></th>
-                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" className="border-r border-border/60" />
-                  <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
-                  <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
-                  <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
-                  <SortableTh label="1 Month" colKey="change1m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
+                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" className="border-r border-border" />
+                  <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
+                  <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
+                  <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
+                  <SortableTh label="1 Month" colKey="change1m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
                   <SortableTh label="3 Months" colKey="change3m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
                   <th className="py-3 px-4 w-16"></th>
                 </tr>
