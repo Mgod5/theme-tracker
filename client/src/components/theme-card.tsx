@@ -221,7 +221,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[200px]">
+        <td className="py-3 px-4 min-w-[200px] border-r border-border/60">
           {editing ? (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <Input
@@ -263,19 +263,19 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           )}
         </td>
 
-        <td className="py-3 px-4 text-center">
+        <td className="py-3 px-4 text-center border-r border-border/40">
           <span className="text-xs font-medium text-muted-foreground tabular-nums">
             {stockCount}
           </span>
         </td>
 
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={theme.avgChange1d} />
         </td>
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={theme.avgChange1w} />
         </td>
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={theme.avgChange1m} />
         </td>
         <td className="py-3 px-4 text-right">

@@ -400,7 +400,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[220px]">
+        <td className="py-3 px-4 min-w-[220px] border-r border-border/60">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs font-bold shrink-0">{etf.symbol}</Badge>
             {editing ? (
@@ -445,17 +445,17 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </div>
         </td>
 
-        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm">
+        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm border-r border-border/40">
           {etf.currentPrice !== null ? `$${etf.currentPrice.toFixed(2)}` : "--"}
         </td>
 
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={etf.change1d} />
         </td>
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={etf.change1w} />
         </td>
-        <td className="py-3 px-4 text-right">
+        <td className="py-3 px-4 text-right border-r border-border/40">
           <PerfPill value={etf.change1m} />
         </td>
         <td className="py-3 px-4 text-right">
@@ -677,11 +677,11 @@ export default function Etfs() {
               <thead>
                 <tr className="bg-muted/60 border-b">
                   <th className="w-10 py-3 px-4"></th>
-                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" />
-                  <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
-                  <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
-                  <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
-                  <SortableTh label="1 Month" colKey="change1m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" className="border-r border-border/60" />
+                  <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
+                  <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
+                  <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
+                  <SortableTh label="1 Month" colKey="change1m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border/40" />
                   <SortableTh label="3 Months" colKey="change3m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
                   <th className="py-3 px-4 w-16"></th>
                 </tr>
