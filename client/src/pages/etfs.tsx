@@ -402,7 +402,6 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
 
         <td className="py-3 px-4 min-w-[220px] border-r border-border">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs font-bold shrink-0">{etf.symbol}</Badge>
             {editing ? (
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <Input
@@ -426,13 +425,14 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 group">
+              <div className="flex items-center gap-2 group">
                 <span
                   className="font-semibold text-sm"
                   data-testid={`text-etf-name-${etf.id}`}
                 >
                   {etf.name}
                 </span>
+                <Badge variant="secondary" className="text-xs font-bold shrink-0">{etf.symbol}</Badge>
                 <button
                   className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                   onClick={(e) => { e.stopPropagation(); setEditName(etf.name); setEditing(true); }}
