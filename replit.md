@@ -16,8 +16,8 @@ A stock theme performance tracking application. Users create investment themes (
 - `server/stockPrices.ts` - Polygon.io + Yahoo Finance API integration
 - `server/seed.ts` - Seed data (AI, Cloud, EV themes)
 - `server/db.ts` - Database connection
-- `client/src/pages/home.tsx` - Main page
-- `client/src/components/theme-card.tsx` - Theme card with expandable stock list
+- `client/src/pages/home.tsx` - Themes page (compact sortable table layout, expandable rows)
+- `client/src/components/theme-card.tsx` - ThemeCard: renders `<tr>` pairs (summary row + expandable stock table row)
 - `client/src/components/add-theme-dialog.tsx` - Create theme dialog
 - `client/src/components/add-stock-dialog.tsx` - Add stock to theme dialog
 

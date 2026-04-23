@@ -6,9 +6,8 @@ import { ThemeCard } from "@/components/theme-card";
 import { AddThemeDialog } from "@/components/add-theme-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, TrendingUp, Plus, AlertCircle } from "lucide-react";
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
+import { RefreshCw, TrendingUp, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { useState, useCallback } from "react";
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -26,9 +25,70 @@ function formatTimestamp(iso: string): string {
   return `${dateLabel} at ${time}`;
 }
 
+type ThemeSortKey = "name" | "stocks" | "avgChange1d" | "avgChange1w" | "avgChange1m" | "avgChange3m";
+type SortDir = "asc" | "desc";
+
+function sortThemes(list: ThemeWithPerformance[], key: ThemeSortKey, dir: SortDir): ThemeWithPerformance[] {
+  return [...list].sort((a, b) => {
+    let av: string | number | null;
+    let bv: string | number | null;
+    if (key === "name") { av = a.name; bv = b.name; }
+    else if (key === "stocks") { av = a.stocks.length; bv = b.stocks.length; }
+    else { av = a[key]; bv = b[key]; }
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+    return dir === "asc" ? cmp : -cmp;
+  });
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-30" />;
+  return dir === "asc"
+    ? <ChevronUp className="w-3 h-3 ml-1 text-primary" />
+    : <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
+}
+
+function SortableTh({
+  label, colKey, activeCol, dir, onSort, align = "right", className = "",
+}: {
+  label: string; colKey: ThemeSortKey; activeCol: ThemeSortKey; dir: SortDir;
+  onSort: (k: ThemeSortKey) => void; align?: "left" | "right" | "center"; className?: string;
+}) {
+  const active = activeCol === colKey;
+  return (
+    <th
+      className={`py-3 px-4 font-semibold text-xs uppercase tracking-wider cursor-pointer select-none transition-colors whitespace-nowrap ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"} text-${align} ${className}`}
+      onClick={() => onSort(colKey)}
+    >
+      <span className={`inline-flex items-center gap-0.5 ${align === "right" ? "justify-end w-full" : align === "center" ? "justify-center w-full" : ""}`}>
+        {align === "left"
+          ? <><SortIcon active={active} dir={dir} />{label}</>
+          : <>{label}<SortIcon active={active} dir={dir} /></>}
+      </span>
+    </th>
+  );
+}
+
 export default function Home() {
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
+  const [sortCol, setSortCol] = useState<ThemeSortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const handleSort = (key: ThemeSortKey) => {
+    if (key === sortCol) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(key); setSortDir(key === "name" ? "asc" : "desc"); }
+  };
+
+  const toggleOne = useCallback((id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const { data: lastUpdatedData } = useQuery<{ lastUpdated: string | null }>({
     queryKey: ["/api/prices/last-updated"],
@@ -48,23 +108,17 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ["/api/themes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/etfs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/prices/last-updated"] });
-      toast({
-        title: "Prices Updated",
-        description: data.message || "All prices have been refreshed.",
-      });
+      toast({ title: "Prices Updated", description: data.message || "All prices have been refreshed." });
       setRefreshing(false);
     },
     onError: (err: Error) => {
-      toast({
-        title: "Update Failed",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast({ title: "Update Failed", description: err.message, variant: "destructive" });
       setRefreshing(false);
     },
   });
 
   const totalStocks = themes?.reduce((sum, t) => sum + t.stocks.length, 0) ?? 0;
+  const sortedThemes = themes ? sortThemes(themes, sortCol, sortDir) : [];
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-background">
@@ -72,7 +126,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">Dashboard</h1>
+              <h1 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">Themes</h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {themes && themes.length > 0
                   ? `Tracking ${themes.length} theme${themes.length !== 1 ? "s" : ""} with ${totalStocks} stock${totalStocks !== 1 ? "s" : ""}`
@@ -99,28 +153,21 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/40 border-b px-4 py-3 flex gap-8">
+              {[200, 80, 80, 80, 80, 80].map((w, i) => (
+                <Skeleton key={i} className={`h-4 w-${w === 200 ? "48" : "12"}`} />
+              ))}
+            </div>
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <Skeleton className="h-10 w-10 rounded-md" />
-                  <div className="flex-1">
-                    <Skeleton className="h-5 w-48 mb-2" />
-                    <Skeleton className="h-3 w-72" />
-                  </div>
-                </div>
-                <div className="flex gap-6">
-                  {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="flex flex-col gap-1.5">
-                      <Skeleton className="h-3 w-14" />
-                      <Skeleton className="h-5 w-20" />
-                    </div>
-                  ))}
-                </div>
-              </Card>
+              <div key={i} className="px-4 py-3 border-b flex gap-8 items-center">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-8" />
+                {[1, 2, 3, 4].map((j) => <Skeleton key={j} className="h-4 w-14" />)}
+              </div>
             ))}
           </div>
         ) : error ? (
@@ -148,10 +195,31 @@ export default function Home() {
             <AddThemeDialog />
           </div>
         ) : (
-          <div className="space-y-4">
-            {themes?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((theme) => (
-              <ThemeCard key={theme.id} theme={theme} />
-            ))}
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b">
+                  <th className="w-10 py-3 px-4"></th>
+                  <SortableTh label="Theme Name" colKey="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" />
+                  <SortableTh label="Stocks" colKey="stocks" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" />
+                  <SortableTh label="1 Day" colKey="avgChange1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                  <SortableTh label="1 Week" colKey="avgChange1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                  <SortableTh label="1 Month" colKey="avgChange1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                  <SortableTh label="3 Months" colKey="avgChange3m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                  <th className="py-3 px-4 w-24"></th>
+                </tr>
+              </thead>
+              <tbody key={`${sortCol}-${sortDir}`}>
+                {sortedThemes.map((theme) => (
+                  <ThemeCard
+                    key={theme.id}
+                    theme={theme}
+                    isExpanded={expandedIds.has(theme.id)}
+                    onToggle={() => toggleOne(theme.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

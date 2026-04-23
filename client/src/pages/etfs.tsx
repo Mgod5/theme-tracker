@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { EtfWithPerformance } from "@shared/schema";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -19,9 +18,6 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
-  Maximize2,
-  Minimize2,
-  ArrowUpDown,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -80,20 +76,6 @@ function PerformanceIcon({ value, className }: { value: number | null; className
   if (value > 0) return <TrendingUp className={`${iconClass} text-emerald-600 dark:text-emerald-400`} />;
   if (value < 0) return <TrendingDown className={`${iconClass} text-red-600 dark:text-red-400`} />;
   return <Minus className={`${iconClass} text-muted-foreground`} />;
-}
-
-function PerformanceCell({ label, value }: { label: string; value: number | null }) {
-  return (
-    <div className={`flex flex-col items-center gap-1 rounded-md px-4 py-2.5 ${getPerformanceBg(value)}`}>
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
-      <div className="flex items-center gap-1">
-        <PerformanceIcon value={value} className="w-3 h-3" />
-        <span className={`text-sm font-bold tabular-nums ${getPerformanceColor(value)}`}>
-          {formatPercent(value)}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 interface OHLCVPoint {
@@ -221,32 +203,20 @@ function EtfChart({ etfId, symbol }: { etfId: number; symbol: string }) {
     });
     candleSeries.setData(processedData.candles);
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "volume",
-    });
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 },
-    });
-    volumeSeries.setData(processedData.volumeData);
+    const volPane = chart.addPane({ factor: 0.2 });
+    const volSeries = chart.addSeries(HistogramSeries, { priceScaleId: "vol" }, 1);
+    volSeries.setData(processedData.volumeData);
 
-    const addLineSeries = (lineData: { time: string; value: number }[], color: string, width: 1 | 2 | 3 | 4 = 1) => {
-      if (lineData.length === 0) return;
-      const series = chart.addSeries(LineSeries, {
-        color,
-        lineWidth: width,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-      });
-      series.setData(lineData);
+    const addSMA = (seriesData: { time: string; value: number }[], color: string, width = 1) => {
+      const s = chart.addSeries(LineSeries, { color, lineWidth: width, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 0);
+      s.setData(seriesData);
     };
 
-    addLineSeries(processedData.sma10, SMA_COLORS.sma10);
-    addLineSeries(processedData.sma20, SMA_COLORS.sma20);
-    addLineSeries(processedData.sma50, SMA_COLORS.sma50);
-    addLineSeries(processedData.sma200, SMA_COLORS.sma200);
-    addLineSeries(processedData.vwap, SMA_COLORS.vwap, 1);
+    addSMA(processedData.sma10, SMA_COLORS.sma10);
+    addSMA(processedData.sma20, SMA_COLORS.sma20);
+    addSMA(processedData.sma50, SMA_COLORS.sma50, 2);
+    addSMA(processedData.sma200, SMA_COLORS.sma200, 2);
+    addSMA(processedData.vwap, SMA_COLORS.vwap);
 
     chart.timeScale().fitContent();
 
@@ -260,71 +230,53 @@ function EtfChart({ etfId, symbol }: { etfId: number; symbol: string }) {
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
-      chartRef.current = null;
     };
   }, [processedData]);
 
   if (isLoading) {
-    return <Skeleton className="w-full h-64 rounded-md" />;
+    return (
+      <div className="mt-4 h-[400px] rounded-md bg-muted/30 flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading chart…</div>
+      </div>
+    );
   }
 
   if (!processedData) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-        No price history available
+      <div className="mt-4 h-[200px] rounded-md bg-muted/30 flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">No price data available for {symbol}.</div>
       </div>
     );
   }
 
   return (
-    <div className="mt-4" data-testid={`chart-etf-${etfId}`}>
-      <h4 className="text-sm font-semibold text-muted-foreground mb-2">
-        {symbol} Daily — 12 Months
-      </h4>
-      <div className="flex items-center gap-3 mb-2 flex-wrap">
-        {[
-          { label: "SMA 10", color: SMA_COLORS.sma10 },
-          { label: "SMA 20", color: SMA_COLORS.sma20 },
-          { label: "SMA 50", color: SMA_COLORS.sma50 },
-          { label: "SMA 200", color: SMA_COLORS.sma200 },
-          { label: "VWAP", color: SMA_COLORS.vwap },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 rounded-full" style={{ backgroundColor: item.color }} />
-            <span className="text-[10px] text-muted-foreground">{item.label}</span>
-          </div>
+    <div className="mt-4">
+      <div className="flex flex-wrap gap-3 mb-2 text-xs text-muted-foreground">
+        {Object.entries(SMA_COLORS).map(([k, color]) => (
+          <span key={k} className="flex items-center gap-1">
+            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: color }} />
+            {k.toUpperCase()}
+          </span>
         ))}
       </div>
-      <div ref={chartContainerRef} className="w-full" />
+      <div ref={chartContainerRef} className="w-full rounded-md overflow-hidden" />
     </div>
   );
 }
 
-interface HoldingPerformance {
-  symbol: string;
-  name: string;
-  weight: number;
-  change30d: number | null;
-}
-
 function TopHoldings({ etfId }: { etfId: number }) {
-  const { data, isLoading } = useQuery<{ holdings: HoldingPerformance[] }>({
-    queryKey: ["/api/etfs", etfId, "top-holdings"],
-    queryFn: async () => {
-      const res = await fetch(`/api/etfs/${etfId}/top-holdings`);
-      if (!res.ok) throw new Error("Failed to fetch holdings");
-      return res.json();
-    },
-    staleTime: 1000 * 60 * 30,
+  const { data, isLoading } = useQuery<{ holdings: { symbol: string; weight: number; change30d: number | null }[] }>({
+    queryKey: [`/api/etfs/${etfId}/top-holdings`],
+    staleTime: 30 * 60 * 1000,
   });
 
   if (isLoading) {
     return (
       <div className="mt-4" data-testid={`holdings-loading-${etfId}`}>
-        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Top 10 Holdings — 30-Day Performance</h4>
-        <div className="space-y-1.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-full rounded" />
+        <div className="text-sm font-semibold text-muted-foreground mb-2">Top 10 Holdings — 30-Day Performance</div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {[...Array(10)].map((_, i) => (
+            <Skeleton key={i} className="h-9 rounded-md" />
           ))}
         </div>
       </div>
@@ -338,7 +290,7 @@ function TopHoldings({ etfId }: { etfId: number }) {
     <div className="mt-4" data-testid={`holdings-etf-${etfId}`}>
       <h4 className="text-sm font-semibold text-muted-foreground mb-2">Top 10 Holdings — 30-Day Performance</h4>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        {holdings.map((h, idx) => (
+        {holdings.map((h) => (
           <div
             key={h.symbol}
             className={`flex items-center justify-between rounded-md px-3 py-2 ${getPerformanceBg(h.change30d)}`}
@@ -357,7 +309,7 @@ function TopHoldings({ etfId }: { etfId: number }) {
   );
 }
 
-function EtfCard({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded: boolean; onToggle: () => void }) {
+function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded: boolean; onToggle: () => void }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(etf.name);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -392,22 +344,13 @@ function EtfCard({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expande
 
   const handleSaveEdit = () => {
     const trimmed = editName.trim();
-    if (!trimmed || trimmed === etf.name) {
-      setEditName(etf.name);
-      setEditing(false);
-      return;
-    }
+    if (!trimmed || trimmed === etf.name) { setEditName(etf.name); setEditing(false); return; }
     updateEtfMutation.mutate(trimmed);
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSaveEdit();
-    } else if (e.key === "Escape") {
-      setEditName(etf.name);
-      setEditing(false);
-    }
+    if (e.key === "Enter") { e.preventDefault(); handleSaveEdit(); }
+    else if (e.key === "Escape") { setEditName(etf.name); setEditing(false); }
   };
 
   const deleteEtfMutation = useMutation({
@@ -424,79 +367,90 @@ function EtfCard({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expande
   });
 
   return (
-    <Card className="overflow-visible" data-testid={`card-etf-${etf.id}`}>
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <button
-                onClick={onToggle}
-                className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
-                data-testid={`button-toggle-etf-${etf.id}`}
-              >
-                {expanded ? (
-                  <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                )}
-              </button>
-              {editing ? (
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    ref={editInputRef}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={handleEditKeyDown}
-                    onBlur={handleSaveEdit}
-                    className="text-lg font-bold w-64"
-                    data-testid={`input-edit-etf-name-${etf.id}`}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleSaveEdit}
-                    disabled={updateEtfMutation.isPending}
-                    data-testid={`button-save-etf-name-${etf.id}`}
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 group">
-                  <h3
-                    className="text-lg font-bold cursor-pointer"
-                    onClick={onToggle}
-                    data-testid={`text-etf-name-${etf.id}`}
-                  >
-                    {etf.name}
-                  </h3>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => { setEditName(etf.name); setEditing(true); }}
-                    data-testid={`button-edit-etf-name-${etf.id}`}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              )}
-              <Badge variant="secondary">{etf.symbol}</Badge>
-              {etf.currentPrice !== null && (
-                <span className="text-sm font-medium tabular-nums text-muted-foreground">
-                  ${etf.currentPrice.toFixed(2)}
+    <>
+      <tr
+        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+        onClick={() => { if (!editing) onToggle(); }}
+        data-testid={`card-etf-${etf.id}`}
+      >
+        <td className="py-3 px-4 w-10">
+          <button
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            data-testid={`button-toggle-etf-${etf.id}`}
+          >
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </td>
+
+        <td className="py-3 px-4 min-w-[220px]">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs font-bold shrink-0">{etf.symbol}</Badge>
+            {editing ? (
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <Input
+                  ref={editInputRef}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  onBlur={handleSaveEdit}
+                  className="h-7 text-sm font-semibold w-48"
+                  data-testid={`input-edit-etf-name-${etf.id}`}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={handleSaveEdit}
+                  disabled={updateEtfMutation.isPending}
+                  data-testid={`button-save-etf-name-${etf.id}`}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 group">
+                <span
+                  className="font-semibold text-sm"
+                  data-testid={`text-etf-name-${etf.id}`}
+                >
+                  {etf.name}
                 </span>
-              )}
-            </div>
-            {expanded && etf.description && (
-              <p className="text-sm text-muted-foreground mt-1 ml-7">{etf.description}</p>
+                <button
+                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); setEditName(etf.name); setEditing(true); }}
+                  data-testid={`button-edit-etf-name-${etf.id}`}
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-1">
+        </td>
+
+        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm">
+          {etf.currentPrice !== null ? `$${etf.currentPrice.toFixed(2)}` : "--"}
+        </td>
+
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1d)}`}>
+          {formatPercent(etf.change1d)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1w)}`}>
+          {formatPercent(etf.change1w)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1m)}`}>
+          {formatPercent(etf.change1m)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change3m)}`}>
+          {formatPercent(etf.change3m)}
+        </td>
+
+        <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="icon" variant="ghost" data-testid={`button-delete-etf-${etf.id}`}>
-                  <Trash2 className="w-4 h-4" />
+                <Button size="icon" variant="ghost" className="h-7 w-7" data-testid={`button-delete-etf-${etf.id}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -518,30 +472,27 @@ function EtfCard({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expande
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </div>
+        </td>
+      </tr>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap mt-4">
-          <PerformanceCell label="1 Day" value={etf.change1d} />
-          <PerformanceCell label="1 Week" value={etf.change1w} />
-          <PerformanceCell label="1 Month" value={etf.change1m} />
-          <PerformanceCell label="3 Months" value={etf.change3m} />
-        </div>
-
-        {expanded && (
-          <>
-            <TopHoldings etfId={etf.id} />
-            <EtfChart etfId={etf.id} symbol={etf.symbol} />
-          </>
-        )}
-      </div>
-    </Card>
+      {expanded && (
+        <tr data-testid={`row-etf-detail-${etf.id}`}>
+          <td colSpan={8} className="p-0 bg-muted/10 border-b">
+            <div className="px-6 py-4">
+              <TopHoldings etfId={etf.id} />
+              <EtfChart etfId={etf.id} symbol={etf.symbol} />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
 type EtfSortKey = "name" | "currentPrice" | "change1d" | "change1w" | "change1m" | "change3m";
-type EtfSortDir = "asc" | "desc";
+type SortDir = "asc" | "desc";
 
-function sortEtfs(list: EtfWithPerformance[], key: EtfSortKey, dir: EtfSortDir): EtfWithPerformance[] {
+function sortEtfs(list: EtfWithPerformance[], key: EtfSortKey, dir: SortDir): EtfWithPerformance[] {
   return [...list].sort((a, b) => {
     const av = a[key] as string | number | null;
     const bv = b[key] as string | number | null;
@@ -552,12 +503,40 @@ function sortEtfs(list: EtfWithPerformance[], key: EtfSortKey, dir: EtfSortDir):
   });
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-30" />;
+  return dir === "asc"
+    ? <ChevronUp className="w-3 h-3 ml-1 text-primary" />
+    : <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
+}
+
+function SortableTh({
+  label, colKey, activeCol, dir, onSort, align = "right", className = "",
+}: {
+  label: string; colKey: EtfSortKey; activeCol: EtfSortKey; dir: SortDir;
+  onSort: (k: EtfSortKey) => void; align?: "left" | "right"; className?: string;
+}) {
+  const active = activeCol === colKey;
+  return (
+    <th
+      className={`py-3 px-4 font-semibold text-xs uppercase tracking-wider cursor-pointer select-none transition-colors whitespace-nowrap ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"} text-${align} ${className}`}
+      onClick={() => onSort(colKey)}
+    >
+      <span className={`inline-flex items-center gap-0.5 ${align === "right" ? "justify-end w-full" : ""}`}>
+        {align === "left"
+          ? <><SortIcon active={active} dir={dir} />{label}</>
+          : <>{label}<SortIcon active={active} dir={dir} /></>}
+      </span>
+    </th>
+  );
+}
+
 export default function Etfs() {
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [etfSortKey, setEtfSortKey] = useState<EtfSortKey>("name");
-  const [etfSortDir, setEtfSortDir] = useState<EtfSortDir>("asc");
+  const [etfSortDir, setEtfSortDir] = useState<SortDir>("asc");
 
   const handleEtfSort = (key: EtfSortKey) => {
     if (key === etfSortKey) setEtfSortDir(d => d === "asc" ? "desc" : "asc");
@@ -572,22 +551,10 @@ export default function Etfs() {
     queryKey: ["/api/etfs"],
   });
 
-  const allExpanded = etfList ? etfList.length > 0 && etfList.every((e) => expandedIds.has(e.id)) : false;
-  const allCollapsed = etfList ? etfList.length > 0 && etfList.every((e) => !expandedIds.has(e.id)) : true;
-
-  const expandAll = useCallback(() => {
-    if (etfList) setExpandedIds(new Set(etfList.map((e) => e.id)));
-  }, [etfList]);
-
-  const collapseAll = useCallback(() => {
-    setExpandedIds(new Set());
-  }, []);
-
   const toggleOne = useCallback((id: number) => {
-    setExpandedIds((prev) => {
+    setExpandedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -602,21 +569,16 @@ export default function Etfs() {
       queryClient.invalidateQueries({ queryKey: ["/api/themes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/etfs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/prices/last-updated"] });
-      toast({
-        title: "Prices Updated",
-        description: data.message || "All prices have been refreshed.",
-      });
+      toast({ title: "Prices Updated", description: data.message || "All prices have been refreshed." });
       setRefreshing(false);
     },
     onError: (err: Error) => {
-      toast({
-        title: "Update Failed",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast({ title: "Update Failed", description: err.message, variant: "destructive" });
       setRefreshing(false);
     },
   });
+
+  const sortedEtfs = etfList ? sortEtfs(etfList, etfSortKey, etfSortDir) : [];
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-background">
@@ -637,30 +599,6 @@ export default function Etfs() {
                   Updated {formatTimestamp(lastUpdatedData.lastUpdated)}
                 </span>
               )}
-              {etfList && etfList.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={expandAll}
-                    disabled={allExpanded}
-                    data-testid="button-expand-all"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5 mr-1.5" />
-                    Expand All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={collapseAll}
-                    disabled={allCollapsed}
-                    data-testid="button-collapse-all"
-                  >
-                    <Minimize2 className="w-3.5 h-3.5 mr-1.5" />
-                    Collapse All
-                  </Button>
-                </>
-              )}
               <Button
                 variant="outline"
                 onClick={() => refreshMutation.mutate()}
@@ -675,27 +613,21 @@ export default function Etfs() {
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/40 border-b px-4 py-3 flex gap-8">
+              {[180, 80, 80, 80, 80, 80].map((w, i) => (
+                <Skeleton key={i} className={`h-4 w-${w === 180 ? "44" : "12"}`} />
+              ))}
+            </div>
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex-1">
-                    <Skeleton className="h-5 w-48 mb-2" />
-                    <Skeleton className="h-3 w-72" />
-                  </div>
-                </div>
-                <div className="flex gap-6">
-                  {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="flex flex-col gap-1.5">
-                      <Skeleton className="h-3 w-14" />
-                      <Skeleton className="h-5 w-20" />
-                    </div>
-                  ))}
-                </div>
-              </Card>
+              <div key={i} className="px-4 py-3 border-b flex gap-8 items-center">
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-4 w-16" />
+                {[1, 2, 3, 4].map((j) => <Skeleton key={j} className="h-4 w-14" />)}
+              </div>
             ))}
           </div>
         ) : error ? (
@@ -723,44 +655,32 @@ export default function Etfs() {
             <AddEtfDialog />
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-1.5 flex-wrap mb-3 text-xs text-muted-foreground">
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              <span className="font-medium mr-1">Sort:</span>
-              {(["name", "currentPrice", "change1d", "change1w", "change1m", "change3m"] as EtfSortKey[]).map((key) => {
-                const labels: Record<EtfSortKey, string> = {
-                  name: "Name", currentPrice: "Price", change1d: "1 Day",
-                  change1w: "1 Week", change1m: "1 Month", change3m: "3 Months",
-                };
-                const active = etfSortKey === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleEtfSort(key)}
-                    data-testid={`button-sort-etf-${key}`}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors select-none ${active ? "bg-primary text-primary-foreground border-primary" : "border-border bg-muted/40 hover:bg-muted"}`}
-                  >
-                    {labels[key]}
-                    {active ? (
-                      etfSortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                    ) : (
-                      <ChevronsUpDown className="w-3 h-3 opacity-40" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-4">
-              {sortEtfs(etfList ?? [], etfSortKey, etfSortDir).map((etf) => (
-                <EtfCard
-                  key={etf.id}
-                  etf={etf}
-                  expanded={expandedIds.has(etf.id)}
-                  onToggle={() => toggleOne(etf.id)}
-                />
-              ))}
-            </div>
-          </>
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b">
+                  <th className="w-10 py-3 px-4"></th>
+                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" />
+                  <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <SortableTh label="1 Month" colKey="change1m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <SortableTh label="3 Months" colKey="change3m" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />
+                  <th className="py-3 px-4 w-16"></th>
+                </tr>
+              </thead>
+              <tbody key={`${etfSortKey}-${etfSortDir}`}>
+                {sortedEtfs.map((etf) => (
+                  <EtfRow
+                    key={etf.id}
+                    etf={etf}
+                    expanded={expandedIds.has(etf.id)}
+                    onToggle={() => toggleOne(etf.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

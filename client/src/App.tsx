@@ -34,7 +34,7 @@ function NavHeader() {
                 data-testid="nav-link-dashboard"
               >
                 <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Dashboard</span>
+                <span className="hidden sm:inline">Themes</span>
               </Button>
             </Link>
             <Link href="/etfs">

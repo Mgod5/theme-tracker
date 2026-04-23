@@ -4,17 +4,11 @@ import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ThemeWithPerformance, StockPerformance } from "@shared/schema";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Plus as PlusIcon,
-  Minus as MinusIcon,
   Trash2,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   X,
   Pencil,
   Check,
@@ -56,21 +50,6 @@ function getPerformanceColor(value: number | null): string {
   return "text-muted-foreground";
 }
 
-function getPerformanceBg(value: number | null): string {
-  if (value === null || value === undefined) return "bg-muted";
-  if (value > 0) return "bg-emerald-50 dark:bg-emerald-950/40";
-  if (value < 0) return "bg-red-50 dark:bg-red-950/40";
-  return "bg-muted";
-}
-
-function PerformanceIcon({ value, className }: { value: number | null; className?: string }) {
-  const iconClass = className || "w-3.5 h-3.5";
-  if (value === null || value === undefined) return <Minus className={`${iconClass} text-muted-foreground`} />;
-  if (value > 0) return <TrendingUp className={`${iconClass} text-emerald-600 dark:text-emerald-400`} />;
-  if (value < 0) return <TrendingDown className={`${iconClass} text-red-600 dark:text-red-400`} />;
-  return <Minus className={`${iconClass} text-muted-foreground`} />;
-}
-
 type StockSortKey = "symbol" | "dollarVolume" | "atrMultiple" | "adr" | "currentPrice" | "change1d" | "change1w" | "change1m" | "change3m";
 type SortDir = "asc" | "desc";
 
@@ -90,7 +69,7 @@ function SortableTh({
   const active = activeCol === colKey;
   return (
     <th
-      className={`py-3 px-5 font-semibold text-xs uppercase tracking-wider cursor-pointer select-none transition-colors ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"} ${align === "right" ? "text-right" : "text-left"} ${className}`}
+      className={`py-2.5 px-4 font-semibold text-xs uppercase tracking-wider cursor-pointer select-none transition-colors whitespace-nowrap ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"} ${align === "right" ? "text-right" : "text-left"} ${className}`}
       onClick={(e) => { e.stopPropagation(); onSort(colKey); }}
     >
       <span className="inline-flex items-center gap-0.5">
@@ -104,8 +83,8 @@ function SortableTh({
 
 function sortStocks(stocks: StockPerformance[], key: StockSortKey, dir: SortDir): StockPerformance[] {
   return [...stocks].sort((a, b) => {
-    let av: string | number | null = a[key] as string | number | null;
-    let bv: string | number | null = b[key] as string | number | null;
+    const av: string | number | null = a[key] as string | number | null;
+    const bv: string | number | null = b[key] as string | number | null;
     if (av === null || av === undefined) return 1;
     if (bv === null || bv === undefined) return -1;
     const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
@@ -113,22 +92,11 @@ function sortStocks(stocks: StockPerformance[], key: StockSortKey, dir: SortDir)
   });
 }
 
-function PerformanceCell({ label, value }: { label: string; value: number | null }) {
-  return (
-    <div className={`flex flex-col items-center gap-1 rounded-md px-4 py-2.5 ${getPerformanceBg(value)}`}>
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
-      <div className="flex items-center gap-1">
-        <PerformanceIcon value={value} className="w-3 h-3" />
-        <span className={`text-sm font-bold tabular-nums ${getPerformanceColor(value)}`}>
-          {formatPercent(value)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
-  const [expanded, setExpanded] = useState(false);
+export function ThemeCard({ theme, isExpanded, onToggle }: {
+  theme: ThemeWithPerformance;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(theme.name);
   const [sortCol, setSortCol] = useState<StockSortKey>("change1d");
@@ -185,13 +153,8 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSaveEdit();
-    } else if (e.key === "Escape") {
-      setEditName(theme.name);
-      setEditing(false);
-    }
+    if (e.key === "Enter") { e.preventDefault(); handleSaveEdit(); }
+    else if (e.key === "Escape") { setEditName(theme.name); setEditing(false); }
   };
 
   const deleteThemeMutation = useMutation({
@@ -223,62 +186,92 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
   const stockCount = theme.stocks.length;
 
   return (
-    <Card className="overflow-visible" data-testid={`card-theme-${theme.id}`}>
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {editing ? (
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    ref={editInputRef}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={handleEditKeyDown}
-                    onBlur={handleSaveEdit}
-                    className="text-lg font-bold w-64"
-                    data-testid={`input-edit-theme-name-${theme.id}`}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleSaveEdit}
-                    disabled={updateThemeMutation.isPending}
-                    data-testid={`button-save-theme-name-${theme.id}`}
-                  >
-                    <Check className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 group">
-                  <h3 className="text-lg font-bold" data-testid={`text-theme-name-${theme.id}`}>
-                    {theme.name}
-                  </h3>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => { setEditName(theme.name); setEditing(true); }}
-                    data-testid={`button-edit-theme-name-${theme.id}`}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              )}
-              <Badge variant="secondary">
-                {stockCount} {stockCount === 1 ? "stock" : "stocks"}
-              </Badge>
+    <>
+      <tr
+        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+        onClick={() => { if (!editing) onToggle(); }}
+        data-testid={`row-theme-${theme.id}`}
+      >
+        <td className="py-3 px-4 w-8">
+          <button
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            data-testid={`button-expand-theme-${theme.id}`}
+          >
+            {isExpanded
+              ? <ChevronUp className="w-4 h-4" />
+              : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </td>
+
+        <td className="py-3 px-4 min-w-[200px]">
+          {editing ? (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <Input
+                ref={editInputRef}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                onBlur={handleSaveEdit}
+                className="h-7 text-sm font-semibold w-48"
+                data-testid={`input-edit-theme-name-${theme.id}`}
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+                onClick={handleSaveEdit}
+                disabled={updateThemeMutation.isPending}
+                data-testid={`button-save-theme-name-${theme.id}`}
+              >
+                <Check className="w-3.5 h-3.5" />
+              </Button>
             </div>
-            {theme.description && (
-              <p className="text-sm text-muted-foreground mt-1">{theme.description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
+          ) : (
+            <div className="flex items-center gap-1.5 group">
+              <span
+                className="font-semibold text-sm"
+                data-testid={`text-theme-name-${theme.id}`}
+              >
+                {theme.name}
+              </span>
+              <button
+                className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); setEditName(theme.name); setEditing(true); }}
+                data-testid={`button-edit-theme-name-${theme.id}`}
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </td>
+
+        <td className="py-3 px-4 text-center">
+          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+            {stockCount}
+          </span>
+        </td>
+
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1d)}`}>
+          {formatPercent(theme.avgChange1d)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1w)}`}>
+          {formatPercent(theme.avgChange1w)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1m)}`}>
+          {formatPercent(theme.avgChange1m)}
+        </td>
+        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange3m)}`}>
+          {formatPercent(theme.avgChange3m)}
+        </td>
+
+        <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1">
             <AddStockDialog themeId={theme.id} themeName={theme.name} />
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="icon" variant="ghost" data-testid={`button-delete-theme-${theme.id}`}>
-                  <Trash2 className="w-4 h-4" />
+                <Button size="icon" variant="ghost" className="h-7 w-7" data-testid={`button-delete-theme-${theme.id}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -300,121 +293,97 @@ export function ThemeCard({ theme }: { theme: ThemeWithPerformance }) {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </div>
+        </td>
+      </tr>
 
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <PerformanceCell label="1 Day" value={theme.avgChange1d} />
-            <PerformanceCell label="1 Week" value={theme.avgChange1w} />
-            <PerformanceCell label="1 Month" value={theme.avgChange1m} />
-            <PerformanceCell label="3 Months" value={theme.avgChange3m} />
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setExpanded(!expanded)}
-            data-testid={`button-expand-theme-${theme.id}`}
-            className="gap-2"
-          >
-            {expanded ? (
-              <>
-                <MinusIcon className="w-4 h-4" />
-                Collapse
-              </>
+      {isExpanded && (
+        <tr data-testid={`row-theme-detail-${theme.id}`}>
+          <td colSpan={8} className="p-0 bg-muted/10 border-b">
+            {theme.stocks.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                No stocks in this theme yet. Click the
+                <PlusIcon className="w-3.5 h-3.5 inline mx-1 -mt-0.5" />
+                button to add stocks.
+              </div>
             ) : (
-              <>
-                <PlusIcon className="w-4 h-4" />
-                Expand
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t">
-          {theme.stocks.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              No stocks in this theme yet. Click the
-              <PlusIcon className="w-3.5 h-3.5 inline mx-1 -mt-0.5" />
-              button above to add stocks.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid={`table-stocks-${theme.id}`}>
-                <thead>
-                  <tr className="bg-muted/40">
-                    <SortableTh label="Symbol" colKey="symbol" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="border-r-2 border-border" />
-                    <SortableTh label="$ Vol" colKey="dollarVolume" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="ATR Mult" colKey="atrMultiple" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="ADR" colKey="adr" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="Price" colKey="currentPrice" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Day" colKey="change1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Week" colKey="change1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="1 Month" colKey="change1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <SortableTh label="3 Months" colKey="change3m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                    <th className="w-12 py-3 px-3"></th>
-                  </tr>
-                </thead>
-                <tbody key={`${theme.id}-${sortCol}-${sortDir}`}>
-                  {sortedStocks.map((stock: StockPerformance, idx: number) => (
-                    <tr
-                      key={`${theme.id}-${stock.symbol}`}
-                      className={`transition-colors ${idx < sortedStocks.length - 1 ? "border-b" : ""}`}
-                      data-testid={`row-stock-${stock.symbol}`}
-                    >
-                      <td className="py-3 px-5 border-r-2 border-border">
-                        <Link href={`/charts/${stock.symbol}`}>
-                          <span
-                            className="font-bold text-sm hover:text-primary hover:underline cursor-pointer transition-colors"
-                            data-testid={`link-stock-chart-${stock.symbol}`}
-                          >
-                            {stock.symbol}
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="py-3 px-5 text-right tabular-nums font-medium text-muted-foreground" data-testid={`text-dollar-vol-${stock.symbol}`}>
-                        {formatDollarVolume(stock.dollarVolume)}
-                      </td>
-                      <td className={`py-3 px-5 text-right tabular-nums font-semibold ${getPerformanceColor(stock.atrMultiple)}`} data-testid={`text-atr-multiple-${stock.symbol}`}>
-                        {stock.atrMultiple !== null ? `${stock.atrMultiple.toFixed(2)}x` : "--"}
-                      </td>
-                      <td className="py-3 px-5 text-right tabular-nums font-medium text-blue-600 dark:text-blue-400" data-testid={`text-adr-${stock.symbol}`}>
-                        {stock.adr !== null ? `${stock.adr.toFixed(2)}%` : "--"}
-                      </td>
-                      <td className="py-3 px-5 text-right tabular-nums font-medium">
-                        {stock.currentPrice !== null ? `$${stock.currentPrice.toFixed(2)}` : "--"}
-                      </td>
-                      <td className={`py-3 px-5 text-right tabular-nums font-semibold ${getPerformanceColor(stock.change1d)}`}>
-                        {formatPercent(stock.change1d)}
-                      </td>
-                      <td className={`py-3 px-5 text-right tabular-nums font-semibold ${getPerformanceColor(stock.change1w)}`}>
-                        {formatPercent(stock.change1w)}
-                      </td>
-                      <td className={`py-3 px-5 text-right tabular-nums font-semibold ${getPerformanceColor(stock.change1m)}`}>
-                        {formatPercent(stock.change1m)}
-                      </td>
-                      <td className={`py-3 px-5 text-right tabular-nums font-semibold ${getPerformanceColor(stock.change3m)}`}>
-                        {formatPercent(stock.change3m)}
-                      </td>
-                      <td className="py-3 px-3">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteStockMutation.mutate(stock.symbol)}
-                          disabled={deleteStockMutation.isPending}
-                          data-testid={`button-remove-stock-${stock.symbol}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" data-testid={`table-stocks-${theme.id}`}>
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <SortableTh label="Symbol" colKey="symbol" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="pl-14 border-r border-border" />
+                      <SortableTh label="$ Vol" colKey="dollarVolume" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="ATR Mult" colKey="atrMultiple" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="ADR" colKey="adr" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="Price" colKey="currentPrice" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="1 Day" colKey="change1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="1 Week" colKey="change1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="1 Month" colKey="change1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <SortableTh label="3 Months" colKey="change3m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                      <th className="w-10 py-2.5 px-3"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  </thead>
+                  <tbody key={`${theme.id}-${sortCol}-${sortDir}`}>
+                    {sortedStocks.map((stock: StockPerformance, idx: number) => (
+                      <tr
+                        key={`${theme.id}-${stock.symbol}`}
+                        className={`transition-colors hover:bg-muted/20 ${idx < sortedStocks.length - 1 ? "border-b border-border/50" : ""}`}
+                        data-testid={`row-stock-${stock.symbol}`}
+                      >
+                        <td className="py-2.5 px-4 pl-14 border-r border-border/50">
+                          <Link href={`/charts/${stock.symbol}`}>
+                            <span
+                              className="font-bold text-sm hover:text-primary hover:underline cursor-pointer transition-colors"
+                              data-testid={`link-stock-chart-${stock.symbol}`}
+                            >
+                              {stock.symbol}
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="py-2.5 px-4 text-right tabular-nums font-medium text-muted-foreground text-sm" data-testid={`text-dollar-vol-${stock.symbol}`}>
+                          {formatDollarVolume(stock.dollarVolume)}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.atrMultiple)}`} data-testid={`text-atr-multiple-${stock.symbol}`}>
+                          {stock.atrMultiple !== null ? `${stock.atrMultiple.toFixed(2)}x` : "--"}
+                        </td>
+                        <td className="py-2.5 px-4 text-right tabular-nums font-medium text-blue-600 dark:text-blue-400 text-sm" data-testid={`text-adr-${stock.symbol}`}>
+                          {stock.adr !== null ? `${stock.adr.toFixed(2)}%` : "--"}
+                        </td>
+                        <td className="py-2.5 px-4 text-right tabular-nums font-medium text-sm">
+                          {stock.currentPrice !== null ? `$${stock.currentPrice.toFixed(2)}` : "--"}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1d)}`}>
+                          {formatPercent(stock.change1d)}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1w)}`}>
+                          {formatPercent(stock.change1w)}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1m)}`}>
+                          {formatPercent(stock.change1m)}
+                        </td>
+                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change3m)}`}>
+                          {formatPercent(stock.change3m)}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => deleteStockMutation.mutate(stock.symbol)}
+                            disabled={deleteStockMutation.isPending}
+                            data-testid={`button-remove-stock-${stock.symbol}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </td>
+        </tr>
       )}
-    </Card>
+    </>
   );
 }
