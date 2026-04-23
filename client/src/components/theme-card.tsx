@@ -56,9 +56,9 @@ function PerfPill({ value }: { value: number | null }) {
   }
   const sign = value >= 0 ? "+" : "";
   const cls = value > 0
-    ? "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800"
+    ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
     : value < 0
-    ? "bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800"
+    ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
     : "bg-muted text-muted-foreground ring-1 ring-border";
   return (
     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${cls}`}>
