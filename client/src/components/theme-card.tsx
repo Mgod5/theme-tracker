@@ -45,8 +45,8 @@ function formatDollarVolume(value: number | null): string {
 
 function getPerformanceColor(value: number | null): string {
   if (value === null || value === undefined) return "text-muted-foreground";
-  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
-  if (value < 0) return "text-red-600 dark:text-red-400";
+  if (value > 0) return "text-emerald-400";
+  if (value < 0) return "text-red-400";
   return "text-muted-foreground";
 }
 
@@ -205,7 +205,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
   return (
     <>
       <tr
-        className={`border-b border-border transition-colors cursor-pointer ${isExpanded ? "bg-blue-50 dark:bg-blue-950/30" : "bg-card hover:bg-muted/60"}`}
+        className={`border-b border-border transition-colors cursor-pointer ${isExpanded ? "bg-primary/10" : "bg-card hover:bg-muted"}`}
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`row-theme-${theme.id}`}
       >
@@ -362,7 +362,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
                         <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.atrMultiple)}`} data-testid={`text-atr-multiple-${stock.symbol}`}>
                           {stock.atrMultiple !== null ? `${stock.atrMultiple.toFixed(2)}x` : "--"}
                         </td>
-                        <td className="py-2.5 px-4 text-right tabular-nums font-medium text-blue-600 dark:text-blue-400 text-sm" data-testid={`text-adr-${stock.symbol}`}>
+                        <td className="py-2.5 px-4 text-right tabular-nums font-medium text-blue-400 text-sm" data-testid={`text-adr-${stock.symbol}`}>
                           {stock.adr !== null ? `${stock.adr.toFixed(2)}%` : "--"}
                         </td>
                         <td className="py-2.5 px-4 text-right tabular-nums font-medium text-sm">

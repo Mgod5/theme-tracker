@@ -58,8 +58,8 @@ function formatPercent(value: number | null): string {
 
 function getPerformanceColor(value: number | null): string {
   if (value === null || value === undefined) return "text-muted-foreground";
-  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
-  if (value < 0) return "text-red-600 dark:text-red-400";
+  if (value > 0) return "text-emerald-400";
+  if (value < 0) return "text-red-400";
   return "text-muted-foreground";
 }
 
@@ -90,8 +90,8 @@ function getPerformanceBg(value: number | null): string {
 function PerformanceIcon({ value, className }: { value: number | null; className?: string }) {
   const iconClass = className || "w-3.5 h-3.5";
   if (value === null || value === undefined) return <Minus className={`${iconClass} text-muted-foreground`} />;
-  if (value > 0) return <TrendingUp className={`${iconClass} text-emerald-600 dark:text-emerald-400`} />;
-  if (value < 0) return <TrendingDown className={`${iconClass} text-red-600 dark:text-red-400`} />;
+  if (value > 0) return <TrendingUp className={`${iconClass} text-emerald-400`} />;
+  if (value < 0) return <TrendingDown className={`${iconClass} text-red-400`} />;
   return <Minus className={`${iconClass} text-muted-foreground`} />;
 }
 
