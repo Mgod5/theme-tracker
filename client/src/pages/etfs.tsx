@@ -400,7 +400,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </button>
         </td>
 
-        <td className={`py-3 px-4 min-w-[220px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${expanded ? "bg-primary/10" : "bg-card"}`}>
+        <td className={`py-3 px-4 min-w-[160px] max-w-[200px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${expanded ? "bg-primary/10" : "bg-card"}`}>
           <div className="flex items-center gap-2 flex-wrap">
             {editing ? (
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -425,9 +425,9 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 group">
+              <div className="flex items-center gap-2 group min-w-0">
                 <span
-                  className="font-semibold text-sm"
+                  className="font-semibold text-sm truncate"
                   data-testid={`text-etf-name-${etf.id}`}
                 >
                   {etf.name}

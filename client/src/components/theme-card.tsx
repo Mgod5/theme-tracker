@@ -222,7 +222,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           </button>
         </td>
 
-        <td className={`py-3 px-4 min-w-[200px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${stickyBg}`}>
+        <td className={`py-3 px-4 min-w-[150px] max-w-[180px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${stickyBg}`}>
           {editing ? (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <Input
@@ -246,9 +246,9 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 group">
+            <div className="flex items-center gap-1.5 group min-w-0">
               <span
-                className="font-semibold text-sm"
+                className="font-semibold text-sm truncate"
                 data-testid={`text-theme-name-${theme.id}`}
               >
                 {theme.name}
