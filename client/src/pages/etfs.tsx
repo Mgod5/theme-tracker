@@ -386,7 +386,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
   return (
     <>
       <tr
-        className={`border-b hover:bg-muted/30 transition-colors cursor-pointer ${expanded ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
+        className={`border-b border-border transition-colors cursor-pointer ${expanded ? "bg-blue-50 dark:bg-blue-950/30" : "bg-card hover:bg-muted/60"}`}
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`card-etf-${etf.id}`}
       >
@@ -400,7 +400,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[220px] border-r border-border/60">
+        <td className="py-3 px-4 min-w-[220px] border-r border-border">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs font-bold shrink-0">{etf.symbol}</Badge>
             {editing ? (
@@ -445,17 +445,17 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </div>
         </td>
 
-        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm border-r border-border/40">
+        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm border-r border-border">
           {etf.currentPrice !== null ? `$${etf.currentPrice.toFixed(2)}` : "--"}
         </td>
 
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={etf.change1d} />
         </td>
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={etf.change1w} />
         </td>
-        <td className="py-3 px-4 text-right border-r border-border/40">
+        <td className="py-3 px-4 text-right border-r border-border">
           <PerfPill value={etf.change1m} />
         </td>
         <td className="py-3 px-4 text-right">
@@ -672,7 +672,7 @@ export default function Etfs() {
             <AddEtfDialog />
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60">
+          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60 shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted border-b-2 border-border">
