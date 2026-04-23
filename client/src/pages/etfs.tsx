@@ -390,7 +390,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`card-etf-${etf.id}`}
       >
-        <td className="py-3 px-4 w-10">
+        <td className={`py-3 px-4 w-10 sticky left-0 z-10 ${expanded ? "bg-primary/10" : "bg-card"}`}>
           <button
             className="text-muted-foreground hover:text-foreground transition-colors"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -400,7 +400,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[220px] border-r border-border">
+        <td className={`py-3 px-4 min-w-[220px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${expanded ? "bg-primary/10" : "bg-card"}`}>
           <div className="flex items-center gap-2 flex-wrap">
             {editing ? (
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -612,18 +612,19 @@ export default function Etfs() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               {lastUpdatedData?.lastUpdated && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap" data-testid="text-etf-last-refreshed">
+                <span className="hidden sm:block text-xs text-muted-foreground whitespace-nowrap" data-testid="text-etf-last-refreshed">
                   Updated {formatTimestamp(lastUpdatedData.lastUpdated)}
                 </span>
               )}
               <Button
                 variant="outline"
+                size="default"
                 onClick={() => refreshMutation.mutate()}
                 disabled={refreshing || refreshMutation.isPending}
                 data-testid="button-refresh-etf-prices"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh Prices
+                <RefreshCw className={`w-4 h-4 sm:mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Refresh Prices</span>
               </Button>
               <AddEtfDialog />
             </div>
@@ -672,12 +673,12 @@ export default function Etfs() {
             <AddEtfDialog />
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60 shadow-sm">
-            <table className="w-full text-sm">
+          <div className="border rounded-lg border-t-2 border-t-primary/60 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm min-w-[680px]">
               <thead>
                 <tr className="bg-muted border-b-2 border-border">
-                  <th className="w-10 py-3 px-4"></th>
-                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" className="border-r border-border" />
+                  <th className="w-10 py-3 px-4 sticky left-0 z-10 bg-muted"></th>
+                  <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" className="border-r border-border sticky left-10 z-10 bg-muted shadow-[2px_0_6px_rgba(0,0,0,0.35)]" />
                   <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
                   <SortableTh label="1 Day" colKey="change1d" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />
                   <SortableTh label="1 Week" colKey="change1w" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} className="border-r border-border" />

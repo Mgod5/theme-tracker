@@ -201,6 +201,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
   });
 
   const stockCount = theme.stocks.length;
+  const stickyBg = isExpanded ? "bg-primary/10" : "bg-card";
 
   return (
     <>
@@ -209,7 +210,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`row-theme-${theme.id}`}
       >
-        <td className="py-3 px-4 w-8">
+        <td className={`py-3 px-4 w-8 sticky left-0 z-10 ${stickyBg}`}>
           <button
             className="text-muted-foreground hover:text-foreground transition-colors"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -221,7 +222,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           </button>
         </td>
 
-        <td className="py-3 px-4 min-w-[200px] border-r border-border">
+        <td className={`py-3 px-4 min-w-[200px] border-r border-border sticky left-10 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.35)] ${stickyBg}`}>
           {editing ? (
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <Input
@@ -324,7 +325,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm" data-testid={`table-stocks-${theme.id}`}>
+                <table className="w-full text-sm min-w-[680px]" data-testid={`table-stocks-${theme.id}`}>
                   <thead>
                     <tr className="bg-muted/50">
                       <SortableTh label="Symbol" colKey="symbol" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="pl-14 border-r border-border" />
