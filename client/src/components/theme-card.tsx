@@ -50,6 +50,23 @@ function getPerformanceColor(value: number | null): string {
   return "text-muted-foreground";
 }
 
+function PerfPill({ value }: { value: number | null }) {
+  if (value === null || value === undefined) {
+    return <span className="text-xs text-muted-foreground tabular-nums">--</span>;
+  }
+  const sign = value >= 0 ? "+" : "";
+  const cls = value > 0
+    ? "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800"
+    : value < 0
+    ? "bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800"
+    : "bg-muted text-muted-foreground ring-1 ring-border";
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${cls}`}>
+      {sign}{value.toFixed(2)}%
+    </span>
+  );
+}
+
 type StockSortKey = "symbol" | "dollarVolume" | "atrMultiple" | "adr" | "currentPrice" | "change1d" | "change1w" | "change1m" | "change3m";
 type SortDir = "asc" | "desc";
 
@@ -188,7 +205,7 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
   return (
     <>
       <tr
-        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+        className={`border-b hover:bg-muted/30 transition-colors cursor-pointer ${isExpanded ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`row-theme-${theme.id}`}
       >
@@ -252,17 +269,17 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
           </span>
         </td>
 
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1d)}`}>
-          {formatPercent(theme.avgChange1d)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={theme.avgChange1d} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1w)}`}>
-          {formatPercent(theme.avgChange1w)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={theme.avgChange1w} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange1m)}`}>
-          {formatPercent(theme.avgChange1m)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={theme.avgChange1m} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(theme.avgChange3m)}`}>
-          {formatPercent(theme.avgChange3m)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={theme.avgChange3m} />
         </td>
 
         <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
@@ -351,17 +368,17 @@ export function ThemeCard({ theme, isExpanded, onToggle }: {
                         <td className="py-2.5 px-4 text-right tabular-nums font-medium text-sm">
                           {stock.currentPrice !== null ? `$${stock.currentPrice.toFixed(2)}` : "--"}
                         </td>
-                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1d)}`}>
-                          {formatPercent(stock.change1d)}
+                        <td className="py-2.5 px-4 text-right">
+                          <PerfPill value={stock.change1d} />
                         </td>
-                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1w)}`}>
-                          {formatPercent(stock.change1w)}
+                        <td className="py-2.5 px-4 text-right">
+                          <PerfPill value={stock.change1w} />
                         </td>
-                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change1m)}`}>
-                          {formatPercent(stock.change1m)}
+                        <td className="py-2.5 px-4 text-right">
+                          <PerfPill value={stock.change1m} />
                         </td>
-                        <td className={`py-2.5 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(stock.change3m)}`}>
-                          {formatPercent(stock.change3m)}
+                        <td className="py-2.5 px-4 text-right">
+                          <PerfPill value={stock.change3m} />
                         </td>
                         <td className="py-2.5 px-3">
                           <Button

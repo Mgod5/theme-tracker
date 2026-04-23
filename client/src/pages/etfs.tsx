@@ -63,6 +63,23 @@ function getPerformanceColor(value: number | null): string {
   return "text-muted-foreground";
 }
 
+function PerfPill({ value }: { value: number | null }) {
+  if (value === null || value === undefined) {
+    return <span className="text-xs text-muted-foreground tabular-nums">--</span>;
+  }
+  const sign = value >= 0 ? "+" : "";
+  const cls = value > 0
+    ? "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800"
+    : value < 0
+    ? "bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800"
+    : "bg-muted text-muted-foreground ring-1 ring-border";
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${cls}`}>
+      {sign}{value.toFixed(2)}%
+    </span>
+  );
+}
+
 function getPerformanceBg(value: number | null): string {
   if (value === null || value === undefined) return "bg-muted";
   if (value > 0) return "bg-emerald-50 dark:bg-emerald-950/40";
@@ -369,7 +386,7 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
   return (
     <>
       <tr
-        className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+        className={`border-b hover:bg-muted/30 transition-colors cursor-pointer ${expanded ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
         onClick={() => { if (!editing) onToggle(); }}
         data-testid={`card-etf-${etf.id}`}
       >
@@ -432,17 +449,17 @@ function EtfRow({ etf, expanded, onToggle }: { etf: EtfWithPerformance; expanded
           {etf.currentPrice !== null ? `$${etf.currentPrice.toFixed(2)}` : "--"}
         </td>
 
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1d)}`}>
-          {formatPercent(etf.change1d)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={etf.change1d} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1w)}`}>
-          {formatPercent(etf.change1w)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={etf.change1w} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change1m)}`}>
-          {formatPercent(etf.change1m)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={etf.change1m} />
         </td>
-        <td className={`py-3 px-4 text-right tabular-nums font-semibold text-sm ${getPerformanceColor(etf.change3m)}`}>
-          {formatPercent(etf.change3m)}
+        <td className="py-3 px-4 text-right">
+          <PerfPill value={etf.change3m} />
         </td>
 
         <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
