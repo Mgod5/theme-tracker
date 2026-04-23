@@ -672,10 +672,10 @@ export default function Etfs() {
             <AddEtfDialog />
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-muted/50 border-b">
+                <tr className="bg-muted/60 border-b">
                   <th className="w-10 py-3 px-4"></th>
                   <SortableTh label="Name" colKey="name" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} align="left" />
                   <SortableTh label="Price" colKey="currentPrice" activeCol={etfSortKey} dir={etfSortDir} onSort={handleEtfSort} />

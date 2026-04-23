@@ -195,16 +195,16 @@ export default function Home() {
             <AddThemeDialog />
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-hidden border-t-2 border-t-primary/60">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-muted/50 border-b">
+                <tr className="bg-muted/60 border-b">
                   <th className="w-10 py-3 px-4"></th>
-                  <SortableTh label="Theme Name" colKey="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" />
-                  <SortableTh label="Stocks" colKey="stocks" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" />
-                  <SortableTh label="1 Day" colKey="avgChange1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                  <SortableTh label="1 Week" colKey="avgChange1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-                  <SortableTh label="1 Month" colKey="avgChange1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+                  <SortableTh label="Theme Name" colKey="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="left" className="border-r border-border/60" />
+                  <SortableTh label="Stocks" colKey="stocks" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" className="border-r border-border/40" />
+                  <SortableTh label="1 Day" colKey="avgChange1d" activeCol={sortCol} dir={sortDir} onSort={handleSort} className="border-r border-border/40" />
+                  <SortableTh label="1 Week" colKey="avgChange1w" activeCol={sortCol} dir={sortDir} onSort={handleSort} className="border-r border-border/40" />
+                  <SortableTh label="1 Month" colKey="avgChange1m" activeCol={sortCol} dir={sortDir} onSort={handleSort} className="border-r border-border/40" />
                   <SortableTh label="3 Months" colKey="avgChange3m" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
                   <th className="py-3 px-4 w-24"></th>
                 </tr>
