@@ -6,7 +6,7 @@ import { ThemeCard } from "@/components/theme-card";
 import { AddThemeDialog } from "@/components/add-theme-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, TrendingUp, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { RefreshCw, TrendingUp, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, Download } from "lucide-react";
 import { useState, useCallback } from "react";
 
 function formatTimestamp(iso: string): string {
@@ -149,6 +149,12 @@ export default function Home() {
                 <RefreshCw className={`w-4 h-4 sm:mr-2 ${refreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Refresh Prices</span>
               </Button>
+              <a href="/api/export/excel" download="theme-tracker-export.xlsx">
+                <Button variant="outline" size="default" data-testid="button-download-excel">
+                  <Download className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Download Excel</span>
+                </Button>
+              </a>
               <AddThemeDialog />
             </div>
           </div>
