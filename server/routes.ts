@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 import { log } from "./index";
 import cron from "node-cron";
 import { syncToGitHub, getSyncStatus } from "./githubSync";
+import XLSX from "xlsx";
 
 const backfillInProgress = new Set<string>();
 
@@ -777,6 +778,66 @@ export async function registerRoutes(
       .then((r) => log(`Manual GitHub sync done: ${r.files} files`, "github"))
       .catch((err) => log(`Manual GitHub sync error: ${err}`, "github"));
     res.json({ message: "GitHub sync started" });
+  });
+
+  // --- Excel export ---
+  app.get("/api/export/excel", async (_req, res) => {
+    try {
+      const themes = await storage.getThemesWithPerformance();
+      const etfList = await storage.getEtfsWithPerformance();
+
+      // Build themes rows
+      const themesRows: Record<string, string | number>[] = [];
+      for (const theme of themes) {
+        if (theme.stocks.length === 0) {
+          themesRows.push({ "Theme": theme.name, "Stock Symbol": "", "Latest Price ($)": "" });
+        } else {
+          for (const stock of theme.stocks) {
+            themesRows.push({
+              "Theme": theme.name,
+              "Stock Symbol": stock.symbol,
+              "Latest Price ($)": stock.currentPrice !== null ? Number(stock.currentPrice.toFixed(2)) : "",
+              "1 Day %": stock.change1d !== null ? Number(stock.change1d.toFixed(2)) : "",
+              "1 Week %": stock.change1w !== null ? Number(stock.change1w.toFixed(2)) : "",
+              "1 Month %": stock.change1m !== null ? Number(stock.change1m.toFixed(2)) : "",
+              "3 Month %": stock.change3m !== null ? Number(stock.change3m.toFixed(2)) : "",
+            });
+          }
+        }
+      }
+
+      // Build ETFs rows
+      const etfsRows: Record<string, string | number>[] = etfList.map((etf) => ({
+        "ETF Symbol": etf.symbol,
+        "ETF Name": etf.name,
+        "Description": etf.description || "",
+        "Latest Price ($)": etf.currentPrice !== null ? Number(etf.currentPrice.toFixed(2)) : "",
+        "1 Day %": etf.change1d !== null ? Number(etf.change1d.toFixed(2)) : "",
+        "1 Week %": etf.change1w !== null ? Number(etf.change1w.toFixed(2)) : "",
+        "1 Month %": etf.change1m !== null ? Number(etf.change1m.toFixed(2)) : "",
+        "3 Month %": etf.change3m !== null ? Number(etf.change3m.toFixed(2)) : "",
+      }));
+
+      const wb = XLSX.utils.book_new();
+
+      const wsThemes = XLSX.utils.json_to_sheet(themesRows);
+      wsThemes["!cols"] = [{ wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsThemes, "Themes");
+
+      const wsEtfs = XLSX.utils.json_to_sheet(etfsRows);
+      wsEtfs["!cols"] = [{ wch: 12 }, { wch: 22 }, { wch: 38 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsEtfs, "ETFs");
+
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+      res.setHeader("Content-Disposition", 'attachment; filename="theme-tracker-export.xlsx"');
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Length", buf.length);
+      res.send(buf);
+    } catch (err) {
+      log(`Excel export error: ${err}`, "export");
+      res.status(500).json({ message: "Export failed" });
+    }
   });
 
   // --- Cron: price update + GitHub sync at 5 PM EST weekdays ---
